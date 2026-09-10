@@ -104,9 +104,14 @@ import {
   type JobIntelligenceTask,
 } from "@/hooks/useJobIntelligenceTasks";
 import {
+  hasAutoApplyRuns,
   hasFeatureAccess,
   hasSubscriptionAccess,
 } from "@/lib/subscriptionAccess";
+import {
+  evaluateTrueAutonomyDecision,
+  isTrustedAutoApplySource,
+} from "@/lib/autoApplySources";
 import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
@@ -1392,7 +1397,7 @@ export const JobPage = (): JSX.Element => {
     "explainable_score_breakdown",
   );
   const hasJobEvaluationAccess = hasOpportunityBreakdownAccess;
-  const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Free");
+  const hasAutoApplyAccess = hasAutoApplyRuns(subscriptionTier);
   const hasBulkPipelineAccess = hasFeatureAccess(
     subscriptionTier,
     "bulk_pipeline_tools",
@@ -3544,7 +3549,7 @@ export const JobPage = (): JSX.Element => {
       if (applyingAll) return;
       if (!hasAutoApplyAccess) {
         setError({
-          message: "Sign in to use auto apply.",
+          message: "Upgrade to Basics or above to use Auto Apply.",
           link: "/dashboard/billing",
         });
         return;
@@ -3886,99 +3891,103 @@ export const JobPage = (): JSX.Element => {
         if (saveAsDraftOnly) {
           jobsToAutoApply = [];
           jobsToDraft = jobsWithTargets;
-        } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
-          if (!hasJobEvaluationAccess) {
-            jobsToAutoApply = [...jobsWithTargets];
-            jobsToDraft = [];
-            pushLog(
-              "AI fit evaluation is a Basics+ feature — skipping and launching all jobs with valid apply links.",
-              "info",
-            );
-          } else {
-            jobsToAutoApply = [];
-            jobsToDraft = [];
+        } else if (trueAutonomyEnabled) {
+          jobsToAutoApply = [];
+          jobsToDraft = [];
 
-            for (const item of jobsWithTargets) {
-              try {
-                let tailoredResumeText: string | undefined;
-                let tailoredConfidence: number | undefined;
+          for (const item of jobsWithTargets) {
+            try {
+              let tailoredResumeText: string | undefined;
+              let tailoredConfidence: number | undefined;
 
-                if (autoTailorInBulk && activeResumeText && item.job.description) {
-                  try {
+              if (autoTailorInBulk && activeResumeText && item.job.description) {
+                try {
+                  pushLog(
+                    `Tailoring resume to ${item.job.company} (${item.job.title})...`,
+                    "info",
+                  );
+                  const tailoredResult = await tailorResumeViaEdge({
+                    jobDescription: item.job.description,
+                    resumeText: activeResumeText,
+                    jobTitle: item.job.title,
+                    company: item.job.company,
+                  });
+                  if (tailoredResult?.tailored_resume) {
+                    tailoredResumeText = tailoredResult.tailored_resume;
+                    tailoredConfidence = tailoredResult.confidence_score;
+                    item.job.matchScore = tailoredResult.confidence_score;
+                    item.job.evaluation_summary = {
+                      ...(item.job.evaluation_summary || {}),
+                      confidence_score: tailoredResult.confidence_score,
+                      canonical_decision: tailoredResult.canonical_decision || "strong_yes",
+                      matched_keywords: tailoredResult.matched_keywords,
+                    };
+                    item.tailoredResumeText = tailoredResumeText;
+                    item.tailoredConfidence = tailoredConfidence;
                     pushLog(
-                      `Tailoring resume to ${item.job.company} (${item.job.title})...`,
-                      "info",
+                      `Tailored to ${item.job.company}: match confidence recalculated to ${tailoredResult.confidence_score}%`,
+                      "success",
                     );
-                    const tailoredResult = await tailorResumeViaEdge({
-                      jobDescription: item.job.description,
-                      resumeText: activeResumeText,
-                      jobTitle: item.job.title,
-                      company: item.job.company,
-                    });
-                    if (tailoredResult?.tailored_resume) {
-                      tailoredResumeText = tailoredResult.tailored_resume;
-                      tailoredConfidence = tailoredResult.confidence_score;
-                      item.job.matchScore = tailoredResult.confidence_score;
-                      item.job.evaluation_summary = {
-                        ...(item.job.evaluation_summary || {}),
-                        confidence_score: tailoredResult.confidence_score,
-                        canonical_decision: tailoredResult.canonical_decision || "strong_yes",
-                        matched_keywords: tailoredResult.matched_keywords,
-                      };
-                      item.tailoredResumeText = tailoredResumeText;
-                      item.tailoredConfidence = tailoredConfidence;
-                      pushLog(
-                        `Tailored to ${item.job.company}: match confidence recalculated to ${tailoredResult.confidence_score}%`,
-                        "success",
-                      );
-                    }
-                  } catch (tailorErr) {
-                    console.warn("Auto-tailoring during bulk apply threw", tailorErr);
                   }
+                } catch (tailorErr) {
+                  console.warn("Auto-tailoring during bulk apply threw", tailorErr);
                 }
+              }
 
-                const evaluation = await getEvaluationForJob(item.job);
-                const decision = tailoredConfidence && tailoredConfidence >= 85 ? "strong_yes" : evaluation.canonical_decision;
-                const confidence = tailoredConfidence ?? evaluation.confidence_score ?? 0;
-                const hardBlockers = evaluation.blockers?.length ?? 0;
-
-                // When user launches Auto Apply, allow jobs to proceed if tailored (~95%),
-                // or if confidence is acceptable, reserving draft only for genuine hard blockers
-                const safeToLaunch =
-                  !saveAsDraftOnly && (
-                    (tailoredConfidence && tailoredConfidence >= 70) ||
-                    decision === "strong_yes" ||
-                    decision === "draft_first" ||
-                    confidence >= 50
-                  ) && hardBlockers === 0;
-
-                if (safeToLaunch) {
-                  jobsToAutoApply.push(item);
-                  pushLog(
-                    `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → auto-apply`,
-                    "info",
-                  );
-                } else {
-                  jobsToDraft.push(item);
-                  const reason =
-                    hardBlockers > 0
-                      ? `${hardBlockers} blocker(s)`
-                      : confidence < 65
-                        ? `low confidence (${Math.round(confidence)}%)`
-                        : `decision: ${decision}`;
-                  pushLog(
-                    `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → draft (${reason})`,
-                    "info",
-                  );
+              let evaluation: EvaluateJobFitResponse | null = null;
+              if (hasJobEvaluationAccess) {
+                try {
+                  evaluation = await getEvaluationForJob(item.job);
+                } catch (evalErr) {
+                  console.warn("getEvaluationForJob failed during True Autonomy check", evalErr);
                 }
-              } catch (evaluationError) {
-                console.error("Batch evaluation failed", evaluationError);
+              }
+
+              const cachedEval = evaluationCache.get(item.job.id);
+              const effectiveEval = evaluation || cachedEval;
+              const hardBlockers =
+                effectiveEval?.blockers?.length ??
+                item.job.evaluation_summary?.blockers?.length ??
+                0;
+              const evalConfidence =
+                effectiveEval?.confidence_score ??
+                item.job.evaluation_summary?.confidence_score;
+
+              const decisionResult = evaluateTrueAutonomyDecision({
+                targetUrl: item.target,
+                saveAsDraftOnly,
+                hardBlockers,
+                tailoredConfidence,
+                evaluationConfidence: evalConfidence,
+                jobMatchScore:
+                  typeof item.job.matchScore === "number"
+                    ? item.job.matchScore
+                    : null,
+                canonicalDecision:
+                  effectiveEval?.canonical_decision ??
+                  item.job.evaluation_summary?.canonical_decision,
+              });
+
+              if (decisionResult.safeToApply) {
+                jobsToAutoApply.push(item);
+                pushLog(
+                  `Evaluated: ${item.job.title} — approved for True Autonomy (${Math.round(decisionResult.autonomyConfidence)}% confidence) → auto-apply`,
+                  "info",
+                );
+              } else {
                 jobsToDraft.push(item);
                 pushLog(
-                  `${item.job.title} — evaluation failed, moved to drafts`,
+                  `${item.job.title} — moved to Draft: ${decisionResult.reason}`,
                   "info",
                 );
               }
+            } catch (evaluationError) {
+              console.error("Batch evaluation failed", evaluationError);
+              jobsToDraft.push(item);
+              pushLog(
+                `${item.job.title} — moved to Draft: evaluation encountered an error`,
+                "info",
+              );
             }
           }
         }
@@ -4223,7 +4232,7 @@ export const JobPage = (): JSX.Element => {
               job.raw_data && typeof job.raw_data === "object"
                 ? (job.raw_data as Record<string, unknown>)
                 : {};
-            const nextDraftPayload =
+            const nextDraftPayload: Record<string, unknown> =
               draftData && jobsWithTargets.length === 1
                 ? {
                     ...draftData,
@@ -4231,8 +4240,15 @@ export const JobPage = (): JSX.Element => {
                   }
                 : existingRawData.application_draft &&
                     typeof existingRawData.application_draft === "object"
-                  ? existingRawData.application_draft
+                  ? {
+                      ...(existingRawData.application_draft as Record<string, unknown>),
+                      savedAt: new Date().toISOString(),
+                    }
                   : { savedAt: new Date().toISOString() };
+
+            if (item.tailoredResumeText) {
+              nextDraftPayload.resumeText = item.tailoredResumeText;
+            }
 
             const { error: draftUpdateError } = await supabase
               .from("jobs")
@@ -7090,9 +7106,9 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                         True Autonomy
                       </div>
                       <p className='mt-1 text-xs text-foreground/60 max-w-[85%]'>
-                        Restricts auto-submit to trusted sources (e.g.
-                        Greenhouse, Lever) with &gt;90% match score. Other jobs
-                        will safely fallback to Draft Mode.
+                        Only auto-submits jobs on trusted ATS platforms when
+                        application confidence is at least 90% and no hard
+                        blockers are detected. Other jobs are saved for review.
                       </p>
                     </div>
                     <button

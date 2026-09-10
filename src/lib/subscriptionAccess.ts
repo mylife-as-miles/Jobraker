@@ -162,6 +162,21 @@ export function hasSubscriptionAccess(
   );
 }
 
+export function hasAutoApplyRuns(
+  currentTier: SubscriptionTier | string | null | undefined,
+): boolean {
+  const normalizedCurrent = normalizeSubscriptionTier(currentTier);
+  const plan = BILLING_PLAN_DEFINITIONS.find((p) => p.tier === normalizedCurrent);
+  return (plan?.autoApplyRunsPerMonth ?? 0) > 0;
+}
+
+export function getMinimumAutoApplyTier(): SubscriptionTier {
+  const plan = BILLING_PLAN_DEFINITIONS.find(
+    (p) => (p.autoApplyRunsPerMonth ?? 0) > 0 && p.tier !== "Free",
+  );
+  return plan?.tier ?? "Basics";
+}
+
 export function getFeatureRequiredTier(
   feature: ProductFeatureKey,
 ): SubscriptionTier {

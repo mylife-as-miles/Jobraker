@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
+import { hasAutoApplyRuns } from "../lib/subscriptionAccess";
+import {
+  isTrustedAutoApplySource,
+  evaluateTrueAutonomyDecision,
+  evaluateNormalAutoApplyDecision,
+} from "../lib/autoApplySources";
+import { BILLING_PLAN_DEFINITIONS } from "../lib/billingCatalog";
 
 const jobPageSource = readFileSync(
   resolve(process.cwd(), "src/screens/Dashboard/pages/JobPage.tsx"),
@@ -44,32 +51,6 @@ function matchesJobSearchCriteria(
   );
 }
 
-// Logic matching safeToLaunch in JobPage.tsx
-function evaluateSafeToLaunch(opts: {
-  saveAsDraftOnly: boolean;
-  tailoredConfidence?: number;
-  decision?: string;
-  confidence?: number;
-  hardBlockers?: number;
-}): boolean {
-  const {
-    saveAsDraftOnly,
-    tailoredConfidence,
-    decision,
-    confidence = 0,
-    hardBlockers = 0,
-  } = opts;
-
-  return (
-    !saveAsDraftOnly &&
-    ((tailoredConfidence && tailoredConfidence >= 70) ||
-      decision === "strong_yes" ||
-      decision === "draft_first" ||
-      confidence >= 50) &&
-    hardBlockers === 0
-  );
-}
-
 // Logic matching mapSkyvernStatus / status reconciliation
 function mapProviderStatusToDisplay(status: string | null | undefined) {
   const normalized = (status || "").toLowerCase();
@@ -86,12 +67,234 @@ function mapProviderStatusToDisplay(status: string | null | undefined) {
 }
 
 describe("Auto-Apply Pipeline & Scope Constraints", () => {
-  describe("Per-job automation payload", () => {
+  describe("Problem 1: Auto Apply Entitlement Derivation", () => {
+    it("derives access strictly from canonical billing catalog autoApplyRunsPerMonth > 0", () => {
+      // Validate each plan against the catalog
+      for (const plan of BILLING_PLAN_DEFINITIONS) {
+        const expected = (plan.autoApplyRunsPerMonth ?? 0) > 0;
+        expect(hasAutoApplyRuns(plan.tier)).toBe(expected);
+      }
+
+      // Explicit verification for each tier:
+      // Free has 2 runs -> true
+      expect(hasAutoApplyRuns("Free")).toBe(true);
+      // Starter has 0 runs -> false (must be blocked)
+      expect(hasAutoApplyRuns("Starter")).toBe(false);
+      // Basics has 15 runs -> true
+      expect(hasAutoApplyRuns("Basics")).toBe(true);
+      // Pro has 50 runs -> true
+      expect(hasAutoApplyRuns("Pro")).toBe(true);
+      // Ultimate has 150 runs -> true
+      expect(hasAutoApplyRuns("Ultimate")).toBe(true);
+    });
+
+    it("verifies JobPage uses hasAutoApplyRuns instead of hardcoded Free access", () => {
+      expect(jobPageSource).toContain("hasAutoApplyRuns(subscriptionTier)");
+      expect(jobPageSource).not.toContain('hasSubscriptionAccess(subscriptionTier, "Free")');
+    });
+
+    it("verifies JobPage UpgradePrompt directs non-entitled users to Basics", () => {
+      expect(jobPageSource).toMatch(/requiredTier=['"]Basics['"]/);
+      expect(jobPageSource).toContain("Upgrade to Basics or above to use Auto Apply.");
+    });
+  });
+
+  describe("Problem 2: Trusted ATS Source Verification", () => {
+    it("approves trusted ATS domains and subdomains", () => {
+      expect(
+        isTrustedAutoApplySource("https://boards.greenhouse.io/example/jobs/123"),
+      ).toBe(true);
+      expect(
+        isTrustedAutoApplySource("https://jobs.lever.co/example/123"),
+      ).toBe(true);
+      expect(
+        isTrustedAutoApplySource("https://jobs.ashbyhq.com/example/123"),
+      ).toBe(true);
+      expect(
+        isTrustedAutoApplySource("https://greenhouse.io/careers"),
+      ).toBe(true);
+      expect(
+        isTrustedAutoApplySource("https://lever.co/apply"),
+      ).toBe(true);
+      expect(
+        isTrustedAutoApplySource("https://ashbyhq.com/postings"),
+      ).toBe(true);
+    });
+
+    it("safely rejects spoofed, attacker-controlled, or unapproved domains", () => {
+      // Subdomain spoofing / attacker domains
+      expect(
+        isTrustedAutoApplySource("https://evilgreenhouse.io/job"),
+      ).toBe(false);
+      expect(
+        isTrustedAutoApplySource("https://greenhouse.io.attacker.com/job"),
+      ).toBe(false);
+      expect(
+        isTrustedAutoApplySource("https://notlever.co/job"),
+      ).toBe(false);
+      expect(
+        isTrustedAutoApplySource("https://lever.co.attacker.com/job"),
+      ).toBe(false);
+      expect(
+        isTrustedAutoApplySource("https://ashbyhq.com.malicious.net/apply"),
+      ).toBe(false);
+      expect(
+        isTrustedAutoApplySource("https://myworkdayjobs.com/job"),
+      ).toBe(false);
+    });
+
+    it("handles invalid or empty inputs gracefully", () => {
+      expect(isTrustedAutoApplySource("invalid-url")).toBe(false);
+      expect(isTrustedAutoApplySource("")).toBe(false);
+      expect(isTrustedAutoApplySource(null)).toBe(false);
+      expect(isTrustedAutoApplySource(undefined)).toBe(false);
+      expect(isTrustedAutoApplySource("javascript:alert(1)")).toBe(false);
+    });
+  });
+
+  describe("Problem 2: True Autonomy Policy vs Normal Auto Apply", () => {
+    it("approves trusted source with >=90 confidence and 0 blockers in True Autonomy", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://boards.greenhouse.io/company/jobs/101",
+        evaluationConfidence: 95,
+        hardBlockers: 0,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(true);
+      expect(result.autonomyConfidence).toBe(95);
+      expect(result.isTrustedSource).toBe(true);
+      expect(result.hardBlockers).toBe(0);
+    });
+
+    it("routes to draft when confidence is below 90 (e.g. 89) in True Autonomy", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://boards.greenhouse.io/company/jobs/101",
+        evaluationConfidence: 89,
+        hardBlockers: 0,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(false);
+      expect(result.reason).toContain("autonomy confidence 89% is below the 90% threshold");
+    });
+
+    it("routes to draft when target is an untrusted source in True Autonomy even with 99 confidence", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://untrusted-jobboard.com/jobs/101",
+        evaluationConfidence: 99,
+        hardBlockers: 0,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(false);
+      expect(result.reason).toContain("source is not approved for True Autonomy");
+    });
+
+    it("routes to draft when a hard blocker exists in True Autonomy even with 99 confidence", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://jobs.lever.co/company/101",
+        evaluationConfidence: 99,
+        hardBlockers: 1,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(false);
+      expect(result.reason).toContain("1 hard blocker detected");
+    });
+
+    it("routes to draft for draft_first decision with 60 confidence in True Autonomy", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://jobs.ashbyhq.com/company/101",
+        evaluationConfidence: 60,
+        canonicalDecision: "draft_first",
+        hardBlockers: 0,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(false);
+      expect(result.reason).toContain("below the 90% threshold");
+    });
+
+    it("allows tailoredConfidence (e.g. 95) to satisfy True Autonomy threshold", () => {
+      const result = evaluateTrueAutonomyDecision({
+        targetUrl: "https://boards.greenhouse.io/company/jobs/101",
+        tailoredConfidence: 95,
+        evaluationConfidence: 75, // Lower baseline evaluation overridden by tailored confidence
+        jobMatchScore: 70,
+        hardBlockers: 0,
+        saveAsDraftOnly: false,
+      });
+
+      expect(result.safeToApply).toBe(true);
+      expect(result.autonomyConfidence).toBe(95);
+    });
+
+    it("clearly distinguishes normal Auto Apply policy from True Autonomy policy", () => {
+      // Case 1: 60% confidence with strong_yes on untrusted source
+      const case1 = {
+        saveAsDraftOnly: false,
+        confidence: 60,
+        decision: "strong_yes",
+        hardBlockers: 0,
+        targetUrl: "https://customboard.org/apply/123",
+      };
+
+      // In Normal Auto Apply: user-directed flow allows it
+      expect(evaluateNormalAutoApplyDecision(case1)).toBe(true);
+
+      // In True Autonomy: strictly rejected because untrusted source and confidence < 90
+      const trueAutonomyCase1 = evaluateTrueAutonomyDecision({
+        targetUrl: case1.targetUrl,
+        evaluationConfidence: case1.confidence,
+        canonicalDecision: case1.decision,
+        hardBlockers: case1.hardBlockers,
+        saveAsDraftOnly: case1.saveAsDraftOnly,
+      });
+      expect(trueAutonomyCase1.safeToApply).toBe(false);
+
+      // Case 2: 75% confidence on trusted source
+      const case2 = {
+        saveAsDraftOnly: false,
+        confidence: 75,
+        decision: "strong_yes",
+        hardBlockers: 0,
+        targetUrl: "https://jobs.lever.co/company/123",
+      };
+
+      // Normal Auto Apply: allowed
+      expect(evaluateNormalAutoApplyDecision(case2)).toBe(true);
+
+      // True Autonomy: rejected because 75% < 90%
+      const trueAutonomyCase2 = evaluateTrueAutonomyDecision({
+        targetUrl: case2.targetUrl,
+        evaluationConfidence: case2.confidence,
+        canonicalDecision: case2.decision,
+        hardBlockers: case2.hardBlockers,
+        saveAsDraftOnly: case2.saveAsDraftOnly,
+      });
+      expect(trueAutonomyCase2.safeToApply).toBe(false);
+      expect(trueAutonomyCase2.reason).toContain("below the 90% threshold");
+    });
+  });
+
+  describe("Per-job automation payload & draft tailoring preservation", () => {
     it("keeps tailored resume data in scope while dispatching each job", () => {
       expect(jobPageSource).toMatch(
         /for\s*\(const item of jobsWithTargets\)\s*\{\s*const \{ job, target \} = item;/,
       );
       expect(jobPageSource).not.toContain("(item as any)");
+    });
+
+    it("preserves tailoredResumeText in nextDraftPayload when demoted to draft", () => {
+      expect(jobPageSource).toContain("if (item.tailoredResumeText) {");
+      expect(jobPageSource).toContain("nextDraftPayload.resumeText = item.tailoredResumeText;");
+    });
+
+    it("updates True Autonomy UI copy to accurately reflect rules", () => {
+      expect(jobPageSource).toMatch(
+        /Only auto-submits jobs on trusted ATS platforms when\s+application confidence is at least 90% and no hard\s+blockers are detected\.\s+Other jobs are saved for review\./,
+      );
     });
   });
 
@@ -139,52 +342,6 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       // Profile default "Product Designer" does NOT match "DevOps"
       expect(matchesJobSearchCriteria(designerJob, "DevOps")).toBe(false);
       expect(matchesJobSearchCriteria(reactJob, "DevOps")).toBe(false);
-    });
-  });
-
-  describe("Bulk Apply Draft Prevention & Quality Gates", () => {
-    it("allows auto-tailored ~95% confidence jobs to proceed to auto-apply", () => {
-      const tailoredJob = {
-        saveAsDraftOnly: false,
-        tailoredConfidence: 95,
-        decision: "strong_yes",
-        confidence: 95,
-        hardBlockers: 0,
-      };
-      expect(evaluateSafeToLaunch(tailoredJob)).toBe(true);
-    });
-
-    it("prevents demoting qualified jobs with 60% confidence to draft when auto-applying", () => {
-      const qualifiedJob = {
-        saveAsDraftOnly: false,
-        tailoredConfidence: undefined,
-        decision: "strong_yes",
-        confidence: 60,
-        hardBlockers: 0,
-      };
-      expect(evaluateSafeToLaunch(qualifiedJob)).toBe(true);
-    });
-
-    it("correctly routes jobs to draft if user explicitly selected saveAsDraftOnly", () => {
-      const draftExplicit = {
-        saveAsDraftOnly: true,
-        tailoredConfidence: 95,
-        decision: "strong_yes",
-        confidence: 95,
-        hardBlockers: 0,
-      };
-      expect(evaluateSafeToLaunch(draftExplicit)).toBe(false);
-    });
-
-    it("correctly routes jobs to draft if genuine hard blockers exist", () => {
-      const blockedJob = {
-        saveAsDraftOnly: false,
-        tailoredConfidence: 95,
-        decision: "strong_yes",
-        confidence: 95,
-        hardBlockers: 1, // e.g. Requires top secret clearance
-      };
-      expect(evaluateSafeToLaunch(blockedJob)).toBe(false);
     });
   });
 

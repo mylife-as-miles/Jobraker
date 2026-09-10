@@ -4,6 +4,8 @@
  * has a >99% success rate due to consistent DOM structures and lack of complex captchas.
  */
 
+import { isTrustedAutoApplySource } from "@/lib/autoApplySources";
+
 const TRUSTED_DOMAINS = [
   "lever.co",
   "greenhouse.io",
@@ -13,16 +15,23 @@ const TRUSTED_DOMAINS = [
 ];
 
 export function isTrustedSource(url: string | null | undefined): boolean {
-  if (!url) return false;
-  
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+
   try {
-    const parsedUrl = new URL(url);
+    const parsedUrl = new URL(trimmed);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return false;
+    }
     const hostname = parsedUrl.hostname.toLowerCase();
-    
-    return TRUSTED_DOMAINS.some(domain => hostname.includes(domain));
-  } catch (error) {
-    // If URL parsing fails, fallback to simple string checking just in case
-    const lowerUrl = url.toLowerCase();
-    return TRUSTED_DOMAINS.some(domain => lowerUrl.includes(domain));
+
+    return TRUSTED_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+    );
+  } catch {
+    return false;
   }
 }
+
+export { isTrustedAutoApplySource };
