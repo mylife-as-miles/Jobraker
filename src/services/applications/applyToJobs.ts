@@ -31,6 +31,12 @@ export type ApplyToJobsParams = {
   rtrvr_device_id?: string | null;
   rtrvr_prefer_extension?: boolean;
   auto_submit?: boolean;
+  submission_mode?: "review" | "autopilot";
+  true_autonomy?: boolean;
+  tailored_confidence?: number | null;
+  evaluation_confidence?: number | null;
+  hard_blockers_count?: number | null;
+  save_as_draft_only?: boolean;
   email?: string;
   job_id?: string | null;
   job_title?: string | null;

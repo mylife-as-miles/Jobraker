@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
+import { validateSubmissionPolicy } from "../../shared/auto-apply-policy.ts";
 
 async function recoverStaleRtrvrRows(serviceClient: any) {
   const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
@@ -120,7 +121,56 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const candidateLocation = candidateData.location || profile?.location || "";
     const candidateLinkedIn = candidateData.linkedinUrl || profile?.linkedin_url || "";
     const candidateGithub = candidateData.githubUrl || profile?.github_url || "";
-    const autoSubmit = Boolean(app.auto_apply_auto_submit ?? true);
+    const requestedAutoSubmit = Boolean(
+      rtrvrQueueParams.autoSubmit ??
+      (app.provider_run_output as any)?.auto_submit ??
+      (app.provider_run_output as any)?.policy_validation?.effectiveAutoSubmit ??
+      app.auto_apply_auto_submit ??
+      false
+    );
+    const requestedSubmissionMode =
+      rtrvrQueueParams.submissionMode ||
+      (app.provider_run_output as any)?.submission_mode ||
+      (requestedAutoSubmit ? "autopilot" : "review");
+    const requestedTrueAutonomy = Boolean(
+      rtrvrQueueParams.trueAutonomy ??
+      (app.provider_run_output as any)?.true_autonomy ??
+      false
+    );
+
+    // Authoritative backend validation of submission policy
+    const policyResult = validateSubmissionPolicy({
+      targetUrl: applyUrl,
+      requestedAutoSubmit,
+      submissionMode: requestedSubmissionMode,
+      trueAutonomy: requestedTrueAutonomy,
+      tailoredConfidence:
+        rtrvrQueueParams.tailoredConfidence ??
+        rtrvrQueueParams.job?.tailoredConfidence ??
+        (app.provider_run_output as any)?.policy_validation?.autonomyConfidence ??
+        null,
+      evaluationConfidence:
+        rtrvrQueueParams.evaluationConfidence ??
+        rtrvrQueueParams.job?.evaluationConfidence ??
+        (app.provider_run_output as any)?.policy_validation?.autonomyConfidence ??
+        null,
+      jobMatchScore:
+        typeof app.match_score === "number"
+          ? app.match_score
+          : typeof rtrvrQueueParams.job?.matchScore === "number"
+            ? rtrvrQueueParams.job.matchScore
+            : null,
+      hardBlockers:
+        rtrvrQueueParams.hardBlockers ??
+        (app.provider_run_output as any)?.policy_validation?.hardBlockers ??
+        0,
+      saveAsDraftOnly: false,
+    });
+
+    const isPolicyViolation = Boolean(
+      requestedAutoSubmit && !policyResult.mayFinalSubmit && policyResult.code,
+    );
+    const effectiveAutoSubmit = Boolean(requestedAutoSubmit && policyResult.mayFinalSubmit);
 
     const prompt = [
       `You are JobRaker's governed auto-apply agent for role "${app.job_title}" at "${app.company}".`,
@@ -137,7 +187,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       `- Fill in the application fields accurately using the candidate's verified information.`,
       `- If resume upload is present, attach the candidate's resume.`,
       `- If 2FA, CAPTCHA, or custom account login is required, report waiting_for_user.`,
-      autoSubmit ? `- Complete and submit the application.` : `- Fill and prepare the form, but do not click final submit (save draft).`,
+      effectiveAutoSubmit ? `- Complete and submit the application.` : `- Fill and prepare the form, but do not click final submit (save draft).`,
     ].join("\n");
 
     const rtrvrRes = await fetch("https://api.rtrvr.ai/agent", {
@@ -186,11 +236,16 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const runIdPatch = providerRunId ? { run_id: providerRunId } : {};
 
     if (rtrvrRes.ok) {
-      const isDraftOnly = !autoSubmit || result?.status === "prepared";
+      const isDraftOnly = !effectiveAutoSubmit || result?.status === "prepared";
+      const failureReasonPatch = isPolicyViolation
+        ? { failure_reason: `${policyResult.code}: ${policyResult.reason}` }
+        : {};
+
       await supabase
         .from("applications")
         .update({
           ...runIdPatch,
+          ...failureReasonPatch,
           status: isDraftOnly ? "Draft" : "Applied",
           canonical_stage: isDraftOnly ? "draft_ready" : "submitted",
           provider_status: isDraftOnly ? "prepared" : "succeeded",
@@ -217,14 +272,16 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
           type: "application",
           title: isDraftOnly ? `Draft Prepared: ${app.job_title}` : `Application Submitted: ${app.job_title}`,
           message: isDraftOnly
-            ? `Your application for ${app.job_title} at ${app.company} is filled and ready for your final review.`
+            ? (isPolicyViolation
+                ? `Your application for ${app.job_title} at ${app.company} was filled and saved as draft because ${policyResult.reason}.`
+                : `Your application for ${app.job_title} at ${app.company} is filled and ready for your final review.`)
             : `Your application for ${app.job_title} at ${app.company} was submitted successfully via cloud automation.`,
-          priority: "medium",
+          priority: isPolicyViolation ? "high" : "medium",
           source: "automation",
           sourceRecordId: applicationId,
           sourceRecordType: "application",
           actionUrl: "/dashboard/applications",
-          actionLabel: "View Application",
+          actionLabel: isDraftOnly ? "Review Draft" : "View Application",
         });
       } catch (e) {
         console.warn("[process-auto-apply-queue] notification failed:", e);
@@ -237,17 +294,20 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
           String(result?.error || result?.message || ""),
         );
       const isNonRetryable =
+        isPolicyViolation ||
         isCreditExhausted ||
         rtrvrRes.status === 401 ||
         rtrvrRes.status === 403 ||
         rtrvrRes.status === 404 ||
         currentRetries >= 2;
 
-      const failureMsg = isCreditExhausted
-        ? "Cloud browser automation credits are currently depleted on RTRVR. Saved as Draft for manual submission."
-        : isNonRetryable
-          ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
-          : (result?.error || result?.message || "RTRVR temporary error");
+      const failureMsg = isPolicyViolation
+        ? `Policy validation failure (${policyResult.code}: ${policyResult.reason}). Saved as Draft.`
+        : isCreditExhausted
+          ? "Cloud browser automation credits are currently depleted on RTRVR. Saved as Draft for manual submission."
+          : isNonRetryable
+            ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
+            : (result?.error || result?.message || "RTRVR temporary error");
 
       await supabase
         .from("applications")

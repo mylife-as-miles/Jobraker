@@ -1,16 +1,33 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { hasAutoApplyRuns } from "../lib/subscriptionAccess";
+import {
+  hasAutoApplyRuns,
+  getNextAutoApplyEnabledTier,
+  getMinimumAutoApplyTier,
+} from "../lib/subscriptionAccess";
 import {
   isTrustedAutoApplySource,
   evaluateTrueAutonomyDecision,
   evaluateNormalAutoApplyDecision,
+  validateSubmissionPolicy,
+  TRUE_AUTONOMY_MIN_CONFIDENCE,
+  TRUSTED_AUTO_APPLY_DOMAINS,
 } from "../lib/autoApplySources";
 import { BILLING_PLAN_DEFINITIONS } from "../lib/billingCatalog";
 
 const jobPageSource = readFileSync(
   resolve(process.cwd(), "src/screens/Dashboard/pages/JobPage.tsx"),
+  "utf8",
+);
+
+const applyToJobsSource = readFileSync(
+  resolve(process.cwd(), "backend/supabase/functions/apply-to-jobs/index.ts"),
+  "utf8",
+);
+
+const processQueueSource = readFileSync(
+  resolve(process.cwd(), "backend/supabase/functions/process-auto-apply-queue/index.ts"),
   "utf8",
 );
 
@@ -66,8 +83,8 @@ function mapProviderStatusToDisplay(status: string | null | undefined) {
   }
 }
 
-describe("Auto-Apply Pipeline & Scope Constraints", () => {
-  describe("Problem 1: Auto Apply Entitlement Derivation", () => {
+describe("Auto-Apply Pipeline & Authoritative Backend Safety Policy", () => {
+  describe("Problem 1: Auto Apply Entitlement & Dynamic Upgrade Helpers", () => {
     it("derives access strictly from canonical billing catalog autoApplyRunsPerMonth > 0", () => {
       // Validate each plan against the catalog
       for (const plan of BILLING_PLAN_DEFINITIONS) {
@@ -88,14 +105,30 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       expect(hasAutoApplyRuns("Ultimate")).toBe(true);
     });
 
-    it("verifies JobPage uses hasAutoApplyRuns instead of hardcoded Free access", () => {
-      expect(jobPageSource).toContain("hasAutoApplyRuns(subscriptionTier)");
-      expect(jobPageSource).not.toContain('hasSubscriptionAccess(subscriptionTier, "Free")');
+    it("dynamically resolves next enabled tier from catalog ordering", () => {
+      // Starter with 0 runs must be recommended Basics (next tier with runs)
+      expect(getNextAutoApplyEnabledTier("Starter")).toBe("Basics");
+      // Free recommends Basics (first higher tier with runs)
+      expect(getNextAutoApplyEnabledTier("Free")).toBe("Basics");
+      // Basics recommends Pro
+      expect(getNextAutoApplyEnabledTier("Basics")).toBe("Pro");
+      // Pro recommends Ultimate
+      expect(getNextAutoApplyEnabledTier("Pro")).toBe("Ultimate");
+      // Ultimate falls back to Basics
+      expect(getNextAutoApplyEnabledTier("Ultimate")).toBe("Basics");
+      // Null/undefined defaults to Basics
+      expect(getNextAutoApplyEnabledTier(null)).toBe("Basics");
+
+      // getMinimumAutoApplyTier defaults to Basics
+      expect(getMinimumAutoApplyTier()).toBe("Basics");
+      expect(getMinimumAutoApplyTier("Starter")).toBe("Basics");
     });
 
-    it("verifies JobPage UpgradePrompt directs non-entitled users to Basics", () => {
-      expect(jobPageSource).toMatch(/requiredTier=['"]Basics['"]/);
-      expect(jobPageSource).toContain("Upgrade to Basics or above to use Auto Apply.");
+    it("verifies JobPage uses hasAutoApplyRuns and dynamic upgrade recommendation", () => {
+      expect(jobPageSource).toContain("hasAutoApplyRuns(subscriptionTier)");
+      expect(jobPageSource).not.toContain('hasSubscriptionAccess(subscriptionTier, "Free")');
+      expect(jobPageSource).toContain("autoApplyUpgradeTier = getMinimumAutoApplyTier(subscriptionTier)");
+      expect(jobPageSource).toContain("requiredTier={autoApplyUpgradeTier}");
     });
   });
 
@@ -118,6 +151,10 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       ).toBe(true);
       expect(
         isTrustedAutoApplySource("https://ashbyhq.com/postings"),
+      ).toBe(true);
+      // Protocol-less input handling
+      expect(
+        isTrustedAutoApplySource("boards.greenhouse.io/example/jobs/123"),
       ).toBe(true);
     });
 
@@ -150,6 +187,15 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       expect(isTrustedAutoApplySource(undefined)).toBe(false);
       expect(isTrustedAutoApplySource("javascript:alert(1)")).toBe(false);
     });
+
+    it("verifies canonical constants in shared policy", () => {
+      expect(TRUE_AUTONOMY_MIN_CONFIDENCE).toBe(90);
+      expect(TRUSTED_AUTO_APPLY_DOMAINS).toEqual([
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com",
+      ]);
+    });
   });
 
   describe("Problem 2: True Autonomy Policy vs Normal Auto Apply", () => {
@@ -176,7 +222,8 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       });
 
       expect(result.safeToApply).toBe(false);
-      expect(result.reason).toContain("autonomy confidence 89% is below the 90% threshold");
+      expect(result.code).toBe("true_autonomy_confidence_below_threshold");
+      expect(result.reason).toContain("below the 90% threshold");
     });
 
     it("routes to draft when target is an untrusted source in True Autonomy even with 99 confidence", () => {
@@ -188,6 +235,7 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       });
 
       expect(result.safeToApply).toBe(false);
+      expect(result.code).toBe("true_autonomy_untrusted_source");
       expect(result.reason).toContain("source is not approved for True Autonomy");
     });
 
@@ -200,6 +248,7 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       });
 
       expect(result.safeToApply).toBe(false);
+      expect(result.code).toBe("true_autonomy_hard_blocker");
       expect(result.reason).toContain("1 hard blocker detected");
     });
 
@@ -213,6 +262,7 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
       });
 
       expect(result.safeToApply).toBe(false);
+      expect(result.code).toBe("true_autonomy_confidence_below_threshold");
       expect(result.reason).toContain("below the 90% threshold");
     });
 
@@ -252,6 +302,7 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
         saveAsDraftOnly: case1.saveAsDraftOnly,
       });
       expect(trueAutonomyCase1.safeToApply).toBe(false);
+      expect(trueAutonomyCase1.code).toBe("true_autonomy_untrusted_source");
 
       // Case 2: 75% confidence on trusted source
       const case2 = {
@@ -274,7 +325,145 @@ describe("Auto-Apply Pipeline & Scope Constraints", () => {
         saveAsDraftOnly: case2.saveAsDraftOnly,
       });
       expect(trueAutonomyCase2.safeToApply).toBe(false);
+      expect(trueAutonomyCase2.code).toBe("true_autonomy_confidence_below_threshold");
       expect(trueAutonomyCase2.reason).toContain("below the 90% threshold");
+    });
+  });
+
+  describe("Backend Authoritative Submission Policy Validation", () => {
+    it("allows final submission when all True Autonomy criteria are met", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://boards.greenhouse.io/acme/jobs/123",
+        requestedAutoSubmit: true,
+        submissionMode: "autopilot",
+        tailoredConfidence: 95,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(true);
+      expect(result.effectiveAutoSubmit).toBe(true);
+      expect(result.effectiveSubmissionMode).toBe("autopilot");
+      expect(result.autonomyConfidence).toBe(95);
+      expect(result.code).toBeUndefined();
+    });
+
+    it("prevents client bypass: raw auto_submit: true on untrusted source is downgraded to review mode", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://workday.com/jobs/acme/123",
+        requestedAutoSubmit: true,
+        tailoredConfidence: 99,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.effectiveSubmissionMode).toBe("review");
+      expect(result.code).toBe("true_autonomy_untrusted_source");
+      expect(result.reason).toContain("source is not approved for True Autonomy");
+    });
+
+    it("prevents client bypass: raw auto_submit: true on attacker spoofed domain is downgraded", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://greenhouse.io.attacker.com/jobs/123",
+        requestedAutoSubmit: true,
+        trueAutonomy: true,
+        tailoredConfidence: 95,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.code).toBe("true_autonomy_untrusted_source");
+    });
+
+    it("prevents client bypass: raw auto_submit: true with confidence below 90 is downgraded", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://jobs.lever.co/acme/123",
+        requestedAutoSubmit: true,
+        tailoredConfidence: 89,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.effectiveSubmissionMode).toBe("review");
+      expect(result.code).toBe("true_autonomy_confidence_below_threshold");
+      expect(result.reason).toContain("below the 90% threshold");
+    });
+
+    it("prevents client bypass: raw auto_submit: true with hard blocker is downgraded", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://jobs.ashbyhq.com/acme/123",
+        requestedAutoSubmit: true,
+        tailoredConfidence: 95,
+        hardBlockers: 2,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.code).toBe("true_autonomy_hard_blocker");
+      expect(result.reason).toContain("2 hard blockers detected");
+    });
+
+    it("prevents client bypass: raw auto_submit: true with missing scores is downgraded", () => {
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://boards.greenhouse.io/acme/jobs/123",
+        requestedAutoSubmit: true,
+        tailoredConfidence: null,
+        evaluationConfidence: null,
+        jobMatchScore: null,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.code).toBe("true_autonomy_missing_policy_data");
+    });
+
+    it("preserves ordinary Auto Apply review workflows without rejection codes", () => {
+      // Normal review mode on an untrusted source with moderate score
+      const result = validateSubmissionPolicy({
+        targetUrl: "https://custom-site.com/careers/456",
+        requestedAutoSubmit: false,
+        submissionMode: "review",
+        jobMatchScore: 65,
+        hardBlockers: 0,
+      });
+
+      expect(result.mayFinalSubmit).toBe(false);
+      expect(result.effectiveAutoSubmit).toBe(false);
+      expect(result.effectiveSubmissionMode).toBe("review");
+      // Crucial: no error code or failure reason generated for ordinary review mode!
+      expect(result.code).toBeUndefined();
+      expect(result.reason).toBeUndefined();
+    });
+  });
+
+  describe("Backend Function Implementations & RTRVR Safety Guardrails", () => {
+    it("verifies apply-to-jobs Edge Function enforces authoritative submission policy", () => {
+      // Imports the shared policy
+      expect(applyToJobsSource).toContain('from "../../shared/auto-apply-policy.ts"');
+      // Calls validateSubmissionPolicy
+      expect(applyToJobsSource).toContain("validateSubmissionPolicy({");
+      // Passes effectiveAutoSubmit and submissionMode to rtrvrStartInput
+      expect(applyToJobsSource).toContain("autoSubmit: effectiveAutoSubmit");
+      expect(applyToJobsSource).toContain("submissionMode: effectiveSubmissionMode");
+      // Persists policy validation into provider_run_output
+      expect(applyToJobsSource).toContain("policy_validation: policyValidation");
+    });
+
+    it("verifies process-auto-apply-queue Edge Function enforces authoritative True Autonomy on RTRVR prompt", () => {
+      // Imports the shared policy
+      expect(processQueueSource).toContain('from "../../shared/auto-apply-policy.ts"');
+      // Re-validates policy in queue execution
+      expect(processQueueSource).toContain("validateSubmissionPolicy({");
+      // Sets effectiveAutoSubmit
+      expect(processQueueSource).toContain("effectiveAutoSubmit = Boolean(requestedAutoSubmit && policyResult.mayFinalSubmit)");
+      // Only gives final submit permission to RTRVR prompt when effectiveAutoSubmit is true
+      expect(processQueueSource).toContain("effectiveAutoSubmit ? `- Complete and submit the application.` : `- Fill and prepare the form, but do not click final submit (save draft).`");
+      // Treats policy violations as non-retryable
+      expect(processQueueSource).toContain("isPolicyViolation");
+      expect(processQueueSource).toContain("isNonRetryable =");
     });
   });
 

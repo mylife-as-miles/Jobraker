@@ -14,6 +14,7 @@ import {
   restoreAutoApplyRunQuota,
 } from "../_shared/feature-limits.ts";
 import { refundUserCredits } from "../_shared/refunds.ts";
+import { validateSubmissionPolicy } from "../../shared/auto-apply-policy.ts";
 
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
@@ -439,6 +440,28 @@ function extractJobContext(body: any) {
           ? firstJob.ai_confidence_score
           : null,
     evaluation_id: body?.evaluation_id || firstJob?.evaluation_id || null,
+    tailored_confidence:
+      typeof body?.tailored_confidence === "number"
+        ? body.tailored_confidence
+        : typeof firstJob?.tailored_confidence === "number"
+          ? firstJob.tailored_confidence
+          : null,
+    evaluation_confidence:
+      typeof body?.evaluation_confidence === "number"
+        ? body.evaluation_confidence
+        : typeof firstJob?.evaluation_confidence === "number"
+          ? firstJob.evaluation_confidence
+          : null,
+    hard_blockers:
+      typeof body?.hard_blockers_count === "number"
+        ? body.hard_blockers_count
+        : typeof body?.hard_blockers === "number"
+          ? body.hard_blockers
+          : typeof firstJob?.hard_blockers_count === "number"
+            ? firstJob.hard_blockers_count
+            : typeof firstJob?.hard_blockers === "number"
+              ? firstJob.hard_blockers
+              : 0,
   };
 }
 
@@ -590,9 +613,19 @@ Deno.serve(async (req) => {
       body?.rtrvr_prefer_extension ?? body?.preferExtension,
       profileRow?.rtrvr_prefer_extension !== false,
     );
-    const autoSubmit = parseBoolean(
+    const requestedAutoSubmit = parseBoolean(
       body?.auto_submit ?? body?.autoSubmit,
       Boolean(profileRow?.auto_apply_auto_submit),
+    );
+    const requestedSubmissionMode =
+      typeof body?.submission_mode === "string"
+        ? body.submission_mode
+        : requestedAutoSubmit
+          ? "autopilot"
+          : "review";
+    const requestedTrueAutonomy = parseBoolean(
+      body?.true_autonomy ?? body?.trueAutonomy,
+      false,
     );
 
     if (!jobUrls.length) {
@@ -1002,6 +1035,20 @@ Deno.serve(async (req) => {
     }
 
     const applyUrl = jobUrls[0] || null;
+    const policyValidation = validateSubmissionPolicy({
+      targetUrl: applyUrl,
+      requestedAutoSubmit,
+      submissionMode: requestedSubmissionMode,
+      trueAutonomy: requestedTrueAutonomy,
+      tailoredConfidence: jobContext.tailored_confidence,
+      evaluationConfidence: jobContext.evaluation_confidence,
+      jobMatchScore: jobContext.match_score,
+      hardBlockers: jobContext.hard_blockers,
+      saveAsDraftOnly: body?.save_as_draft_only === true || body?.saveAsDraftOnly === true,
+    });
+    const effectiveAutoSubmit = policyValidation.effectiveAutoSubmit;
+    const effectiveSubmissionMode = policyValidation.effectiveSubmissionMode;
+
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
     const applicationId = crypto.randomUUID();
@@ -1039,7 +1086,22 @@ Deno.serve(async (req) => {
           ? { text: resumeText }
           : null,
       coverLetter,
-      autoSubmit,
+      autoSubmit: effectiveAutoSubmit,
+      submissionMode: effectiveSubmissionMode,
+      trueAutonomy: requestedTrueAutonomy,
+      tailoredConfidence: jobContext.tailored_confidence,
+      evaluationConfidence: jobContext.evaluation_confidence,
+      hardBlockers: jobContext.hard_blockers,
+      policyValidation: {
+        mayFinalSubmit: policyValidation.mayFinalSubmit,
+        effectiveAutoSubmit: policyValidation.effectiveAutoSubmit,
+        effectiveSubmissionMode: policyValidation.effectiveSubmissionMode,
+        autonomyConfidence: policyValidation.autonomyConfidence,
+        isTrustedSource: policyValidation.isTrustedSource,
+        hardBlockers: policyValidation.hardBlockers,
+        code: policyValidation.code,
+        reason: policyValidation.reason,
+      },
       browserPreference: requestedBrowserPreference,
       preferExtension: preferRtrvrExtension,
       selectedDeviceId: selectedRtrvrDeviceId,
@@ -1094,12 +1156,20 @@ Deno.serve(async (req) => {
       automation_fallback_reason: null,
       automation_device_id: selectedRtrvrDeviceId,
       provider_status: "waiting",
-      failure_reason: null,
+      failure_reason:
+        !policyValidation.mayFinalSubmit && requestedAutoSubmit && policyValidation.code
+          ? `${policyValidation.code}: ${policyValidation.reason}`
+          : null,
       match_score: jobContext.match_score,
       match_reasons: jobContext.match_reasons,
       ai_confidence_score: jobContext.ai_confidence_score,
       user_review_notes: null,
-      provider_run_output: { queue_parameters: queueParameters },
+      provider_run_output: {
+        queue_parameters: queueParameters,
+        submission_mode: effectiveSubmissionMode,
+        true_autonomy: requestedTrueAutonomy,
+        policy_validation: policyValidation,
+      },
     };
 
     const upgradeDraftApplication = async (): Promise<boolean> => {

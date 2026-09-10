@@ -2,32 +2,39 @@
  * Utilities for auto-apply source validation and True Autonomy policies.
  * True Autonomy restricts auto-submissions strictly to vetted ATS providers
  * with a high confidence threshold (>= 90%) and 0 hard blockers.
+ *
+ * Canonical policy definitions are shared directly from:
+ * backend/supabase/shared/auto-apply-policy.ts
  */
 
-export const TRUSTED_AUTO_APPLY_DOMAINS = [
-  "greenhouse.io",
-  "lever.co",
-  "ashbyhq.com",
-] as const;
+import {
+  TRUE_AUTONOMY_MIN_CONFIDENCE,
+  TRUSTED_AUTO_APPLY_DOMAINS,
+  isTrustedAutoApplySource,
+  extractAutonomyConfidence,
+  validateSubmissionPolicy,
+  type AutoApplySubmissionMode,
+  type TrueAutonomyRejectionCode,
+  type SubmissionPolicyValidationParams,
+  type SubmissionPolicyValidationResult,
+  type TrustedAutoApplyDomain,
+} from "../../backend/supabase/shared/auto-apply-policy.ts";
 
-export function isTrustedAutoApplySource(url?: string | null): boolean {
-  if (!url || typeof url !== "string") return false;
-  const trimmed = url.trim();
-  if (!trimmed) return false;
+export {
+  TRUE_AUTONOMY_MIN_CONFIDENCE,
+  TRUSTED_AUTO_APPLY_DOMAINS,
+  isTrustedAutoApplySource,
+  extractAutonomyConfidence,
+  validateSubmissionPolicy,
+};
 
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return false;
-    }
-    const hostname = parsed.hostname.toLowerCase();
-    return TRUSTED_AUTO_APPLY_DOMAINS.some(
-      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-    );
-  } catch {
-    return false;
-  }
-}
+export type {
+  AutoApplySubmissionMode,
+  TrueAutonomyRejectionCode,
+  SubmissionPolicyValidationParams,
+  SubmissionPolicyValidationResult,
+  TrustedAutoApplyDomain,
+};
 
 export interface TrueAutonomyEvaluationParams {
   targetUrl?: string | null;
@@ -45,83 +52,35 @@ export interface TrueAutonomyDecisionResult {
   isTrustedSource: boolean;
   hardBlockers: number;
   reason?: string;
+  code?: TrueAutonomyRejectionCode;
 }
 
 /**
- * Strictly evaluates whether a job meets the True Autonomy policy.
- * Requirements:
- * 1. Zero hard blockers
- * 2. Trusted ATS source (e.g. Greenhouse, Lever, Ashby)
- * 3. Match / evaluation confidence >= 90 (prioritizing tailored confidence, then evaluation confidence, then job matchScore)
- * 4. Not explicitly requested as draft-only
+ * Evaluates whether a job meets the True Autonomy policy.
+ * Delegates directly to the canonical backend policy validator.
  */
 export function evaluateTrueAutonomyDecision(
   params: TrueAutonomyEvaluationParams,
 ): TrueAutonomyDecisionResult {
-  const {
-    targetUrl,
-    saveAsDraftOnly = false,
-    hardBlockers = 0,
-    tailoredConfidence,
-    evaluationConfidence,
-    jobMatchScore,
-  } = params;
-
-  const isTrusted = isTrustedAutoApplySource(targetUrl);
-  const autonomyConfidence =
-    typeof tailoredConfidence === "number"
-      ? tailoredConfidence
-      : typeof evaluationConfidence === "number"
-        ? evaluationConfidence
-        : typeof jobMatchScore === "number"
-          ? jobMatchScore
-          : 0;
-
-  if (saveAsDraftOnly) {
-    return {
-      safeToApply: false,
-      autonomyConfidence,
-      isTrustedSource: isTrusted,
-      hardBlockers,
-      reason: "saved as draft for review",
-    };
-  }
-
-  if (hardBlockers > 0) {
-    return {
-      safeToApply: false,
-      autonomyConfidence,
-      isTrustedSource: isTrusted,
-      hardBlockers,
-      reason: `${hardBlockers} hard blocker${hardBlockers > 1 ? "s" : ""} detected`,
-    };
-  }
-
-  if (!isTrusted) {
-    return {
-      safeToApply: false,
-      autonomyConfidence,
-      isTrustedSource: false,
-      hardBlockers,
-      reason: "source is not approved for True Autonomy",
-    };
-  }
-
-  if (autonomyConfidence < 90) {
-    return {
-      safeToApply: false,
-      autonomyConfidence,
-      isTrustedSource: true,
-      hardBlockers,
-      reason: `autonomy confidence ${Math.round(autonomyConfidence)}% is below the 90% threshold`,
-    };
-  }
+  const result = validateSubmissionPolicy({
+    targetUrl: params.targetUrl,
+    requestedAutoSubmit: true,
+    submissionMode: "autopilot",
+    trueAutonomy: true,
+    tailoredConfidence: params.tailoredConfidence,
+    evaluationConfidence: params.evaluationConfidence,
+    jobMatchScore: params.jobMatchScore,
+    hardBlockers: params.hardBlockers,
+    saveAsDraftOnly: params.saveAsDraftOnly,
+  });
 
   return {
-    safeToApply: true,
-    autonomyConfidence,
-    isTrustedSource: true,
-    hardBlockers: 0,
+    safeToApply: result.mayFinalSubmit,
+    autonomyConfidence: result.autonomyConfidence,
+    isTrustedSource: result.isTrustedSource,
+    hardBlockers: result.hardBlockers,
+    reason: result.reason,
+    code: result.code,
   };
 }
 

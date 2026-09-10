@@ -170,11 +170,31 @@ export function hasAutoApplyRuns(
   return (plan?.autoApplyRunsPerMonth ?? 0) > 0;
 }
 
-export function getMinimumAutoApplyTier(): SubscriptionTier {
-  const plan = BILLING_PLAN_DEFINITIONS.find(
+export function getNextAutoApplyEnabledTier(
+  currentTier?: SubscriptionTier | string | null,
+): SubscriptionTier {
+  const normalized = normalizeSubscriptionTier(currentTier);
+  const currentRank = SUBSCRIPTION_TIER_RANK[normalized];
+
+  for (const tier of SUBSCRIPTION_TIER_ORDER) {
+    if (SUBSCRIPTION_TIER_RANK[tier] > currentRank) {
+      const plan = BILLING_PLAN_DEFINITIONS.find((p) => p.tier === tier);
+      if ((plan?.autoApplyRunsPerMonth ?? 0) > 0) {
+        return tier;
+      }
+    }
+  }
+
+  const fallback = BILLING_PLAN_DEFINITIONS.find(
     (p) => (p.autoApplyRunsPerMonth ?? 0) > 0 && p.tier !== "Free",
   );
-  return plan?.tier ?? "Basics";
+  return fallback?.tier ?? "Basics";
+}
+
+export function getMinimumAutoApplyTier(
+  currentTier?: SubscriptionTier | string | null,
+): SubscriptionTier {
+  return getNextAutoApplyEnabledTier(currentTier ?? "Starter");
 }
 
 export function getFeatureRequiredTier(

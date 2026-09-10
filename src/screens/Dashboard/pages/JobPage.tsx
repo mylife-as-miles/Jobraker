@@ -107,10 +107,11 @@ import {
   hasAutoApplyRuns,
   hasFeatureAccess,
   hasSubscriptionAccess,
+  getMinimumAutoApplyTier,
+  getNextAutoApplyEnabledTier,
 } from "@/lib/subscriptionAccess";
 import {
   evaluateTrueAutonomyDecision,
-  isTrustedAutoApplySource,
 } from "@/lib/autoApplySources";
 import {
   VISIBLE_JOB_QUEUE_STATES,
@@ -1398,6 +1399,7 @@ export const JobPage = (): JSX.Element => {
   );
   const hasJobEvaluationAccess = hasOpportunityBreakdownAccess;
   const hasAutoApplyAccess = hasAutoApplyRuns(subscriptionTier);
+  const autoApplyUpgradeTier = getMinimumAutoApplyTier(subscriptionTier);
   const hasBulkPipelineAccess = hasFeatureAccess(
     subscriptionTier,
     "bulk_pipeline_tools",
@@ -3549,7 +3551,7 @@ export const JobPage = (): JSX.Element => {
       if (applyingAll) return;
       if (!hasAutoApplyAccess) {
         setError({
-          message: "Upgrade to Basics or above to use Auto Apply.",
+          message: `Upgrade to ${autoApplyUpgradeTier} or above to use Auto Apply.`,
           link: "/dashboard/billing",
         });
         return;
@@ -4163,6 +4165,21 @@ export const JobPage = (): JSX.Element => {
                 rtrvr_prefer_extension:
                   profile?.rtrvr_prefer_extension !== false,
                 auto_submit: autoSubmitApplications,
+                submission_mode: trueAutonomyEnabled
+                  ? "autopilot"
+                  : autoSubmitApplications
+                    ? "autopilot"
+                    : "review",
+                true_autonomy: trueAutonomyEnabled,
+                tailored_confidence: item.tailoredConfidence ?? null,
+                evaluation_confidence:
+                  evaluation?.confidence_score ??
+                  job.evaluation_summary?.confidence_score ??
+                  null,
+                hard_blockers_count:
+                  evaluation?.blockers?.length ??
+                  job.evaluation_summary?.blockers?.length ??
+                  0,
                 ...(profileSnapshot
                   ? { additional_information: profileSnapshot }
                   : {}),
@@ -6651,10 +6668,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
               ) : !hasAutoApplyAccess ? (
                 <UpgradePrompt
                   compact
-                  requiredTier='Basics'
+                  requiredTier={autoApplyUpgradeTier}
                   showPricing={false}
                   title='Auto Apply Suite'
-                  description='Unlock governed auto apply, AI draft generation, and AI decision checks with Basics or above.'
+                  description={`Unlock governed auto apply, AI draft generation, and AI decision checks with ${autoApplyUpgradeTier} or above.`}
                 />
               ) : null}
 
