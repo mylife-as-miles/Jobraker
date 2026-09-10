@@ -4297,45 +4297,45 @@ export const ChatPage = () => {
                 </div>
               ) : null}
               {messages.length === 0 ? (
-                <div ref={scrollContentRef} className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
-                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
-                    <div className='flex justify-center mb-4'>
-                      <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(47,217,104,0.05)]'>
-                        <Bot className='w-8 h-8 text-brand' />
-                        <div className='absolute -right-0.5 -bottom-0.5 w-5 h-5 bg-brand rounded-full border-2 border-background flex items-center justify-center'>
-                          <span className='w-1.5 h-1.5 bg-primary-foreground rounded-full'></span>
+                <div ref={scrollContentRef} className='flex-1 flex flex-col items-center justify-center px-4 py-4 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                  <div className='max-w-2xl w-full text-center space-y-3 md:space-y-4 py-2 flex flex-col items-center'>
+                    <div className='flex justify-center mb-2 md:mb-3'>
+                      <div className='w-12 h-12 md:w-14 md:h-14 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(47,217,104,0.05)]'>
+                        <Bot className='w-6 h-6 md:w-7 md:h-7 text-brand' />
+                        <div className='absolute -right-0.5 -bottom-0.5 w-4 h-4 bg-brand rounded-full border-2 border-background flex items-center justify-center'>
+                          <span className='w-1 h-1 bg-primary-foreground rounded-full'></span>
                         </div>
                       </div>
                     </div>
-                    <h2 className='product-page-title text-3xl font-bold tracking-tight md:text-4xl'>
+                    <h2 className='product-page-title text-2xl font-bold tracking-tight md:text-3xl'>
                       How can <span className='text-brand'>JobRaker</span> help
                       you today?
                     </h2>
-                    <p className='text-muted-foreground text-sm md:text-base max-w-md mx-auto'>
+                    <p className='text-muted-foreground text-xs md:text-sm max-w-md mx-auto'>
                       Your autonomous career partner. Ask me to optimize your
                       resume, find roles, or practice interviews.
                     </p>
 
                     {loadingStarterSuggestions ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 mt-3 md:mt-4 w-full'>
                         {Array.from({ length: 3 }).map((_, idx) => (
                           <div
                             key={`starter-skeleton-${idx}`}
-                            className='suggestion-card glass-panel p-4 rounded-xl text-left flex flex-col justify-between min-h-[120px] animate-pulse pointer-events-none'
+                            className='suggestion-card glass-panel p-3 md:p-3.5 rounded-xl text-left flex flex-col justify-between min-h-[96px] animate-pulse pointer-events-none'
                           >
                             <div>
-                              <div className='w-5 h-5 rounded-lg bg-foreground/10 mb-2 border border-border/5' />
-                              <div className='h-4 bg-foreground/15 rounded w-2/3 mb-2' />
-                              <div className='space-y-1.5'>
-                                <div className='h-3 bg-foreground/5 rounded w-full' />
-                                <div className='h-3 bg-foreground/5 rounded w-5/6' />
+                              <div className='w-4 h-4 rounded-lg bg-foreground/10 mb-2 border border-border/5' />
+                              <div className='h-3.5 bg-foreground/15 rounded w-2/3 mb-1.5' />
+                              <div className='space-y-1'>
+                                <div className='h-2.5 bg-foreground/5 rounded w-full' />
+                                <div className='h-2.5 bg-foreground/5 rounded w-5/6' />
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : starterSuggestions.length > 0 ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 mt-3 md:mt-4 w-full'>
                         {starterSuggestions.map((suggestion) => {
                           const Icon =
                             CHAT_STARTER_ICONS[suggestion.icon] || FileText;
@@ -4347,14 +4347,14 @@ export const ChatPage = () => {
                                 setText(suggestion.prompt);
                                 setCaretPosition(suggestion.prompt.length);
                               }}
-                              className='suggestion-card glass-panel p-4 rounded-xl text-left transition-all group min-h-[120px] flex flex-col justify-between'
+                              className='suggestion-card glass-panel p-3 md:p-3.5 rounded-xl text-left transition-all group min-h-[96px] flex flex-col justify-between'
                             >
                               <div>
-                                <Icon className='text-brand mb-2 w-5 h-5' />
-                                <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
+                                <Icon className='text-brand mb-1.5 w-4 h-4' />
+                                <h4 className='font-semibold text-xs mb-1 text-card-foreground'>
                                   {suggestion.title}
                                 </h4>
-                                <p className='text-xs text-muted-foreground leading-relaxed'>
+                                <p className='text-[11px] text-muted-foreground leading-snug line-clamp-3'>
                                   {suggestion.description}
                                 </p>
                               </div>
@@ -4403,16 +4403,16 @@ export const ChatPage = () => {
                         const currentTip = proTips[proTipIndex % proTips.length];
 
                         return (
-                          <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto relative group'>
-                            <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
-                              <Sparkles size={16} />
+                          <div className='glass-panel mt-3 md:mt-4 p-3 md:p-3.5 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3 items-start mx-auto relative group'>
+                            <div className='p-1.5 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
+                              <Sparkles size={14} />
                             </div>
 
                             <div className='flex-1 min-w-0 pr-14'>
-                              <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
+                              <h4 className='text-[11px] font-semibold text-foreground/95 mb-0.5 flex items-center gap-1.5'>
                                 {currentTip.title}
                               </h4>
-                              <p className='text-xs text-muted-foreground leading-relaxed'>
+                              <p className='text-[11px] text-muted-foreground leading-relaxed'>
                                 {currentTip.description}
                                 <button
                                   type='button'
@@ -4420,7 +4420,7 @@ export const ChatPage = () => {
                                     setText(currentTip.prompt);
                                     if (textareaRef.current) textareaRef.current.focus();
                                   }}
-                                  className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px] inline-flex items-center gap-1'
+                                  className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1 py-0.2 rounded transition-all text-[10px] inline-flex items-center gap-1'
                                 >
                                   {currentTip.command}
                                 </button>
@@ -4428,7 +4428,7 @@ export const ChatPage = () => {
                               </p>
 
                               {/* Carousel Dots */}
-                              <div className='flex items-center gap-1.5 mt-2.5'>
+                              <div className='flex items-center gap-1 mt-2'>
                                 {proTips.map((_, idx) => (
                                   <button
                                     key={idx}
