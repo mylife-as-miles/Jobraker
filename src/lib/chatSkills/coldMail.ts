@@ -1,4 +1,10 @@
+import { createClient } from "@/lib/supabaseClient";
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
+import {
+  craftOutreachPitch,
+  loadCandidateEvidence,
+  type RecruiterContactInfo,
+} from "@/services/presets/recruiterOutreachService";
 import { inferRoleFromContext, resolveTargetCompanies } from "./directApply";
 import type {
   ColdMailDiscoveryOutput,
@@ -254,27 +260,96 @@ export const coldMailSkill: JobrakerChatSkill = {
       asString(input.args.jobTitle) ||
       selectedSearchJob?.jobTitle ||
       inferRoleFromContext(input.args, fullContext, targetCompanies);
-    const response = await invokeProtectedFunction<ColdMailPrepareResponse>(
-      "cold-mail",
-      {
-        body: {
-          action: "prepare",
-          presetId: asString(input.args.presetId) || undefined,
-          clientRunId:
-            asString(input.args.clientRunId) || input.invocationId,
-          jobId:
-            asString(input.args.jobId) ||
-            asString(input.args.job_id) ||
-            selectedStructuredTarget?.jobId ||
-            undefined,
-          companyName: targetCompanies[0],
-          jobTitle,
-          applyUrl:
-            asString(input.args.applyUrl) || selectedSearchJob?.applyUrl || undefined,
-          instructions: input.userInstruction || undefined,
+    let response: ColdMailPrepareResponse | null = null;
+    try {
+      response = await invokeProtectedFunction<ColdMailPrepareResponse>(
+        "cold-mail",
+        {
+          body: {
+            action: "prepare",
+            presetId: asString(input.args.presetId) || undefined,
+            clientRunId:
+              asString(input.args.clientRunId) || input.invocationId,
+            jobId:
+              asString(input.args.jobId) ||
+              asString(input.args.job_id) ||
+              selectedStructuredTarget?.jobId ||
+              undefined,
+            companyName: targetCompanies[0],
+            jobTitle,
+            applyUrl:
+              asString(input.args.applyUrl) || selectedSearchJob?.applyUrl || undefined,
+            instructions: input.userInstruction || undefined,
+          },
         },
-      },
-    );
+      );
+    } catch (caught: unknown) {
+      const errorMessage =
+        caught instanceof Error ? caught.message : String(caught || "");
+      const isRecipientNotFound =
+        /no evidence-backed recruiter/i.test(errorMessage) ||
+        /cold_mail_recipient_not_found/i.test(errorMessage) ||
+        /no public recruitment email/i.test(errorMessage);
+
+      if (isRecipientNotFound) {
+        input.progress?.("Synthesizing tailored outreach pitch for manual delivery");
+        const supabase = createClient();
+        let candidateEvidence = "Experienced professional seeking new challenge.";
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const userId = authData?.user?.id || "";
+          if (userId) {
+            candidateEvidence = await loadCandidateEvidence(supabase, userId);
+          }
+        } catch (e) {
+          console.warn("Could not load candidate evidence for fallback pitch", e);
+        }
+
+        const safeCompany = encodeURIComponent(targetCompanies[0]);
+        const linkedinUrl = `https://www.linkedin.com/search/results/people/?keywords=${safeCompany}%20recruiter`;
+        const fallbackContact: RecruiterContactInfo = {
+          fullName: `${targetCompanies[0]} Hiring Team`,
+          title: "Recruitment Team",
+          email: "",
+          source: "LinkedIn Search Fallback",
+          confidence: "low",
+          tier: 4,
+          tierLabel: "LinkedIn Connect Ready (No Public Email)",
+          linkedinUrl,
+          status: "no_email",
+        };
+
+        const pitch = await craftOutreachPitch(
+          supabase,
+          {
+            id: asString(input.args.jobId) || "target-job",
+            jobId: asString(input.args.jobId) || null,
+            title: jobTitle,
+            company: targetCompanies[0],
+            source: "searched",
+          },
+          fallbackContact,
+          candidateEvidence,
+          "casual",
+        );
+
+        return {
+          status: "completed",
+          content: `### 📬 Recruiter Email Not Found for **${targetCompanies[0]}**\n\nI researched public directories for **${targetCompanies[0]}** regarding the **${jobTitle}** role, but could not discover a verified public recruiter email address or careers inbox.\n\nTo protect your Gmail domain reputation and prevent high bounce rates, automated drafts are only queued when an email address is verified.\n\n---\n\n### ✍️ Tailored Cold Outreach Pitch (Ready to Send)\n\n**Subject:** ${pitch.subject}\n\n${pitch.body}\n\n---\n\n### 🚀 Recommended Next Actions:\n1. **[Search & Message Recruiters on LinkedIn ↗](${linkedinUrl})**: Send this pitch directly as a LinkedIn connection note or InMail.\n2. **Specify Direct Email**: If you know an email address for their hiring team, reply with:\n   \`@ColdMail draft for ${jobTitle} at ${targetCompanies[0]} to recruiter@${targetCompanies[0].toLowerCase().replace(/[^a-z0-9]/g, "")}.com\``,
+          output: {
+            success: true,
+            status: "no_email_found",
+            companyName: targetCompanies[0],
+            jobTitle,
+            pitch,
+            linkedinUrl,
+            error: "cold_mail_recipient_not_found",
+          },
+        };
+      }
+
+      throw caught;
+    }
 
     if (
       !response?.success ||

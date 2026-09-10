@@ -180,4 +180,28 @@ describe("Cold Mail current job-search context", () => {
       }),
     });
   });
+
+  it("gracefully falls back to tailored pitch and LinkedIn guidance when no public recruiter email is found", async () => {
+    invokeProtectedFunctionMock.mockRejectedValueOnce(
+      new Error(
+        "No evidence-backed recruiter or public recruitment email was found for this job. No Gmail draft was created.",
+      ),
+    );
+
+    const result = await coldMailSkill.execute({
+      args: {
+        jobId: "job-2",
+        companyName: "Globex",
+        jobTitle: "Platform Engineer",
+      },
+      userInstruction: "draft for Globex",
+      conversationContext: [],
+    } as never);
+
+    expect(result.status).toBe("completed");
+    expect(result.content).toContain("Recruiter Email Not Found for **Globex**");
+    expect(result.content).toContain("Tailored Cold Outreach Pitch");
+    expect(result.content).toContain("linkedin.com/search/results/people");
+    expect(result.output.status).toBe("no_email_found");
+  });
 });

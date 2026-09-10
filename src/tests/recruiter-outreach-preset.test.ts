@@ -7,6 +7,7 @@ import {
   craftOutreachPitch,
   deliverOutreachEmail,
   fetchTopUncontactedJobs,
+  isInvalidOutreachJob,
 } from "../services/presets/recruiterOutreachService";
 
 describe("1-Click Recruiter Outreach Preset & Recipes", () => {
@@ -511,6 +512,16 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(prompt).toContain("[Applied: 9/1/2026]");
       expect(prompt).toContain("Friendly & Professional Nudge");
       expect(prompt).toContain("Prepare and sync the follow-up email drafts directly into my connected Gmail workspace");
+    });
+
+    it("filters out scraper listicles and placeholder company names from outreach targets", () => {
+      expect(isInvalidOutreachJob("Remote", "20 Virtual Companies & Remote First Employers Hiring in 2026")).toBe(true);
+      expect(isInvalidOutreachJob("Unknown", "Software Engineer")).toBe(true);
+      expect(isInvalidOutreachJob("Hybrid", "Frontend Developer")).toBe(true);
+      expect(isInvalidOutreachJob("Confidential", "VP of Sales")).toBe(true);
+      expect(isInvalidOutreachJob("Stripe", "Top 10 Virtual Companies Hiring")).toBe(true);
+      expect(isInvalidOutreachJob("Stripe", "Senior Backend Engineer")).toBe(false);
+      expect(isInvalidOutreachJob("Retool", "Product Manager")).toBe(false);
     });
   });
 });

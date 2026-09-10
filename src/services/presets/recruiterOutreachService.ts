@@ -67,6 +67,42 @@ const TONE_INSTRUCTIONS: Record<OutreachTone, string> = {
 };
 
 /**
+ * Detects whether a job entry from the database is an invalid placeholder or article listing.
+ */
+export function isInvalidOutreachJob(company?: string, title?: string): boolean {
+  const normCompany = (company || "").toLowerCase().trim();
+  const normTitle = (title || "").toLowerCase().trim();
+  if (!normCompany || normCompany.length < 2) return true;
+
+  const invalidCompanyNames = new Set([
+    "remote",
+    "hybrid",
+    "on-site",
+    "onsite",
+    "anywhere",
+    "worldwide",
+    "global",
+    "united states",
+    "unknown",
+    "n/a",
+    "na",
+    "none",
+    "confidential",
+    "various",
+    "multiple",
+    "various companies",
+    "multiple companies",
+  ]);
+  if (invalidCompanyNames.has(normCompany)) return true;
+
+  if (/^\d+\s+(?:virtual|best|top|remote|cool|fast-growing)\s+companies/i.test(normTitle)) return true;
+  if (/(?:companies|employers)\s+hiring\s+in/i.test(normTitle)) return true;
+  if (/^how\s+to\b|^guide\s+to\b|^top\s+\d+/i.test(normTitle)) return true;
+
+  return false;
+}
+
+/**
  * Loads candidate evidence from resumes or profile data.
  */
 export async function loadCandidateEvidence(
@@ -187,6 +223,7 @@ export async function fetchTopUncontactedJobs(
       const companyNorm = (job.company || "").toLowerCase().trim();
       if (!companyNorm || seenCompanies.has(companyNorm)) continue;
       if (contactedCompanySet.has(companyNorm) || contactedJobIdSet.has(job.id)) continue;
+      if (isInvalidOutreachJob(job.company, job.title)) continue;
 
       seenCompanies.add(companyNorm);
       availableJobs.push({

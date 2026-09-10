@@ -26,6 +26,7 @@ import { ACTION_RECIPES, type ActionRecipe } from "@/lib/presets/actionRecipes";
 import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
 import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
+import { isInvalidOutreachJob } from "@/services/presets/recruiterOutreachService";
 import type { ColdMailQuota } from "@/lib/chatSkills/types";
 
 export interface PresetJobItem {
@@ -180,6 +181,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
         const mappedSearched: PresetJobItem[] = [];
 
         (jobs || []).forEach((j) => {
+          if (isInvalidOutreachJob(j.company, j.title)) return;
           const norm = (j.company || "").toLowerCase().trim();
           if (!norm || seenCompanies.has(norm)) return;
           seenCompanies.add(norm);
