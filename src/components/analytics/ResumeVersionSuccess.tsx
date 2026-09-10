@@ -78,7 +78,7 @@ export function ResumeVersionSuccess({
             </div>
           </div>
 
-          <div className='grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[260px,1fr] lg:items-center'>
+          <div className='grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[260px_1fr] lg:items-center'>
             <div className='mx-auto h-[240px] w-[240px]'>
               {hasData ? (
                 <ResponsiveContainer width='100%' height='100%'>

@@ -5256,13 +5256,11 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
             </div>
 
             {queueStatus === "ready" && total > 0 && !incrementalMode && (
-              <div className='hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs tracking-wider text-muted-foreground font-semibold border border-foreground/10 rounded-lg'>
-                <span className='pl-2'>Role</span>
-                <div className='grid grid-cols-3 gap-2'>
-                  <span>Company</span>
-                  <span>Details</span>
-                  <span>Posted</span>
-                </div>
+              <div className='hidden lg:grid grid-cols-[1.5fr_1.1fr_1.1fr_auto] items-center gap-4 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 border border-foreground/10 rounded-xl bg-foreground/[0.02]'>
+                <span className='pl-1'>Role</span>
+                <span>Company</span>
+                <span>Details</span>
+                <span className='text-right pr-1'>Posted</span>
               </div>
             )}
 
