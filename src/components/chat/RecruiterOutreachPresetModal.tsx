@@ -486,7 +486,7 @@ ${jobLines}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Briefcase className="size-3.5 text-brand" />
-                Selected Roles ({selectedJobs.length}):
+                {isColdMailPreset ? "Selected Target (1):" : `Selected Roles (${selectedJobs.length}):`}
               </span>
               {isColdMailPreset && coldMailQuota ? (
                 <span className="text-[11px] text-muted-foreground">
@@ -502,7 +502,9 @@ ${jobLines}
             <div className="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 rounded-xl border border-border/60 bg-muted/20">
               {selectedJobs.length === 0 ? (
                 <span className="text-xs text-muted-foreground italic">
-                  No positions selected yet. Choose from the list below or add a custom role.
+                  {isColdMailPreset
+                    ? "No target company selected yet. Choose a role below to research."
+                    : "No positions selected yet. Choose from the list below or add a custom role."}
                 </span>
               ) : (
                 selectedJobs.map((job) => (
@@ -649,6 +651,13 @@ ${jobLines}
             </div>
 
             {/* Jobs List */}
+            {isColdMailPreset && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[11px] text-muted-foreground">
+                <span className="font-semibold text-foreground">💡 1 Target per Run:</span>
+                <span>Recruiter outreach scouts live contacts and creates 1 personalized draft at a time to protect your Gmail reputation.</span>
+              </div>
+            )}
+
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
               {loading ? (
                 <div className="py-8 flex flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -675,7 +684,15 @@ ${jobLines}
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {job.selected ? (
+                      {isColdMailPreset ? (
+                        job.selected ? (
+                          <div className="size-4 rounded-full border-2 border-brand bg-brand flex items-center justify-center shrink-0">
+                            <div className="size-1.5 rounded-full bg-black" />
+                          </div>
+                        ) : (
+                          <div className="size-4 rounded-full border-2 border-muted-foreground/50 shrink-0" />
+                        )
+                      ) : job.selected ? (
                         <CheckSquare className="size-4 text-brand shrink-0" />
                       ) : (
                         <Square className="size-4 text-muted-foreground/60 shrink-0" />

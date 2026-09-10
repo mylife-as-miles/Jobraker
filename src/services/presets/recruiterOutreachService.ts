@@ -95,9 +95,15 @@ export function isInvalidOutreachJob(company?: string, title?: string): boolean 
   ]);
   if (invalidCompanyNames.has(normCompany)) return true;
 
+  // Catch scraper counts, listicles, or aggregator text in company name
+  if (/^\d+\+?\s*(?:hand-curated|curated|positions|jobs|openings|leads|companies)/i.test(normCompany)) return true;
+  if (/(?:curated|hand-curated)\s+(?:positions|jobs|openings)/i.test(normCompany)) return true;
+  if (/\b(?:all\s+verified\s+remote\s+jobs|verified\s+jobs)\b/i.test(normCompany)) return true;
+
   if (/^\d+\s+(?:virtual|best|top|remote|cool|fast-growing)\s+companies/i.test(normTitle)) return true;
   if (/(?:companies|employers)\s+hiring\s+in/i.test(normTitle)) return true;
   if (/^how\s+to\b|^guide\s+to\b|^top\s+\d+/i.test(normTitle)) return true;
+  if (/(?:all\s+verified\s+remote\s+jobs|hand-curated\s+positions)/i.test(normTitle)) return true;
 
   return false;
 }

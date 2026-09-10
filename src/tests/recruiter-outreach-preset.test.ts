@@ -516,6 +516,7 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
 
     it("filters out scraper listicles and placeholder company names from outreach targets", () => {
       expect(isInvalidOutreachJob("Remote", "20 Virtual Companies & Remote First Employers Hiring in 2026")).toBe(true);
+      expect(isInvalidOutreachJob("450+ Hand-Curated Positions", "All Verified Remote Jobs | 450+ Hand-Curated Positions • Remote")).toBe(true);
       expect(isInvalidOutreachJob("Unknown", "Software Engineer")).toBe(true);
       expect(isInvalidOutreachJob("Hybrid", "Frontend Developer")).toBe(true);
       expect(isInvalidOutreachJob("Confidential", "VP of Sales")).toBe(true);
