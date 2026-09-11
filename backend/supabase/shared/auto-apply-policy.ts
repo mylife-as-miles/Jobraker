@@ -15,6 +15,8 @@ export const TRUSTED_AUTO_APPLY_DOMAINS = [
   "ashbyhq.com",
 ] as const;
 
+export type AutomationMode = "review" | "autopilot" | "autopilot_strict";
+
 export type TrustedAutoApplyDomain = (typeof TRUSTED_AUTO_APPLY_DOMAINS)[number];
 
 export type AutoApplySubmissionMode = "review" | "autopilot";
@@ -27,6 +29,7 @@ export type TrueAutonomyRejectionCode =
 
 export interface SubmissionPolicyValidationParams {
   targetUrl?: string | null;
+  automationMode?: AutomationMode | null;
   requestedAutoSubmit?: boolean;
   submissionMode?: string | null;
   trueAutonomy?: boolean | null;
@@ -41,6 +44,7 @@ export interface SubmissionPolicyValidationResult {
   mayFinalSubmit: boolean;
   effectiveAutoSubmit: boolean;
   effectiveSubmissionMode: AutoApplySubmissionMode;
+  effectiveAutomationMode: AutomationMode;
   autonomyConfidence: number;
   isTrustedSource: boolean;
   hardBlockers: number;
@@ -132,15 +136,28 @@ export function extractAutonomyConfidence(scores: {
 export function validateSubmissionPolicy(
   params: SubmissionPolicyValidationParams,
 ): SubmissionPolicyValidationResult {
+  const explicitMode = params.automationMode;
+  const requestedAutoSubmit =
+    explicitMode === "review"
+      ? false
+      : explicitMode === "autopilot" || explicitMode === "autopilot_strict"
+        ? true
+        : params.requestedAutoSubmit === true;
+
+  const trueAutonomy =
+    explicitMode === "autopilot_strict"
+      ? true
+      : explicitMode === "autopilot" || explicitMode === "review"
+        ? false
+        : params.trueAutonomy === true;
+
   const {
     targetUrl,
-    requestedAutoSubmit = false,
-    submissionMode,
-    trueAutonomy,
+    submissionMode: _submissionMode,
     tailoredConfidence,
     evaluationConfidence,
     jobMatchScore,
-    hardBlockers = 0,
+    hardBlockers,
     saveAsDraftOnly = false,
   } = params;
 
@@ -150,24 +167,23 @@ export function validateSubmissionPolicy(
     evaluationConfidence,
     jobMatchScore,
   });
-  const effectiveBlockers =
-    typeof hardBlockers === "number" && !isNaN(hardBlockers)
-      ? Math.max(0, hardBlockers)
-      : 0;
 
-  // Has autonomous final submission been requested?
-  const isAutopilotRequested = Boolean(
-    requestedAutoSubmit ||
-      submissionMode === "autopilot" ||
-      trueAutonomy === true,
-  );
+  const hasExplicitBlockerEvaluation =
+    typeof hardBlockers === "number" && !isNaN(hardBlockers);
+  const effectiveBlockers = hasExplicitBlockerEvaluation
+    ? Math.max(0, hardBlockers)
+    : 0;
 
-  // If client explicitly chose draft-only or review mode:
-  if (saveAsDraftOnly || !isAutopilotRequested) {
+  // 1. ABSOLUTE SUBMISSION AUTHORITY CHECK:
+  // User consent for final submission (requestedAutoSubmit) is an absolute boundary.
+  // Neither submissionMode nor trueAutonomy may ever authorize submission if requestedAutoSubmit is false/falsy.
+  // If saveAsDraftOnly is requested or requestedAutoSubmit is not explicitly true, final submit is DENIED.
+  if (saveAsDraftOnly || requestedAutoSubmit !== true) {
     return {
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence,
       isTrustedSource: isTrusted,
       hardBlockers: effectiveBlockers,
@@ -175,12 +191,30 @@ export function validateSubmissionPolicy(
     };
   }
 
-  // Autonomous submit requested: strictly enforce True Autonomy policy
+  // 2. ORDINARY AUTO APPLY (Final Submit ON, True Autonomy OFF):
+  // When True Autonomy is not enabled, preserve ordinary Auto Apply final-submit behavior.
+  // Do not impose True Autonomy constraints (trusted ATS, >=90 confidence, verified 0 blockers).
+  if (trueAutonomy !== true) {
+    return {
+      mayFinalSubmit: true,
+      effectiveAutoSubmit: true,
+      effectiveSubmissionMode: "autopilot",
+      effectiveAutomationMode: "autopilot",
+      autonomyConfidence,
+      isTrustedSource: isTrusted,
+      hardBlockers: effectiveBlockers,
+    };
+  }
+
+  // 3. TRUE AUTONOMY POLICY (Final Submit ON && True Autonomy ON):
+  // Strictly enforce:
+  // a) Target URL must be present
   if (!targetUrl || typeof targetUrl !== "string" || !targetUrl.trim()) {
     return {
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence,
       isTrustedSource: false,
       hardBlockers: effectiveBlockers,
@@ -189,11 +223,28 @@ export function validateSubmissionPolicy(
     };
   }
 
+  // b) Blocker evaluation must be verified and available (cannot default missing data to 0)
+  if (!hasExplicitBlockerEvaluation) {
+    return {
+      mayFinalSubmit: false,
+      effectiveAutoSubmit: false,
+      effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
+      autonomyConfidence,
+      isTrustedSource: isTrusted,
+      hardBlockers: 0,
+      code: "true_autonomy_missing_policy_data",
+      reason: "Missing blocker evaluation data for True Autonomy validation",
+    };
+  }
+
+  // c) Zero hard blockers allowed
   if (effectiveBlockers > 0) {
     return {
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence,
       isTrustedSource: isTrusted,
       hardBlockers: effectiveBlockers,
@@ -202,20 +253,22 @@ export function validateSubmissionPolicy(
     };
   }
 
+  // d) Approved trusted ATS platform only
   if (!isTrusted) {
     return {
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence,
       isTrustedSource: false,
-      hardBlockers: effectiveBlockers,
+      hardBlockers: 0,
       code: "true_autonomy_untrusted_source",
       reason: "source is not approved for True Autonomy",
     };
   }
 
-  // Check if confidence score is missing (all 3 candidates were null/undefined)
+  // e) Confidence score must be available and >= TRUE_AUTONOMY_MIN_CONFIDENCE (90)
   const hasProvidedConfidence =
     (typeof tailoredConfidence === "number" && !isNaN(tailoredConfidence)) ||
     (typeof evaluationConfidence === "number" && !isNaN(evaluationConfidence)) ||
@@ -226,6 +279,7 @@ export function validateSubmissionPolicy(
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence: 0,
       isTrustedSource: true,
       hardBlockers: 0,
@@ -239,6 +293,7 @@ export function validateSubmissionPolicy(
       mayFinalSubmit: false,
       effectiveAutoSubmit: false,
       effectiveSubmissionMode: "review",
+      effectiveAutomationMode: "review",
       autonomyConfidence,
       isTrustedSource: true,
       hardBlockers: 0,
@@ -247,11 +302,12 @@ export function validateSubmissionPolicy(
     };
   }
 
-  // All checks pass: final submit is permitted
+  // All True Autonomy requirements pass: final submit is permitted
   return {
     mayFinalSubmit: true,
     effectiveAutoSubmit: true,
     effectiveSubmissionMode: "autopilot",
+    effectiveAutomationMode: "autopilot_strict",
     autonomyConfidence,
     isTrustedSource: true,
     hardBlockers: 0,

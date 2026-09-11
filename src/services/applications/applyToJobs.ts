@@ -33,6 +33,7 @@ export type ApplyToJobsParams = {
   auto_submit?: boolean;
   submission_mode?: "review" | "autopilot";
   true_autonomy?: boolean;
+  automation_mode?: "review" | "autopilot" | "autopilot_strict";
   tailored_confidence?: number | null;
   evaluation_confidence?: number | null;
   hard_blockers_count?: number | null;

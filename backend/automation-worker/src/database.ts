@@ -114,6 +114,11 @@ export async function loadStartApplicationInput(
     !Array.isArray(data.provider_run_output)
       ? (data.provider_run_output as Record<string, unknown>)
       : {};
+
+  // Strictly reject modern Edge-owned ApplicationPackage rows
+  if (runOutput.execution_owner === "edge" || Boolean(runOutput.application_package)) {
+    return null;
+  }
   const queueParameters =
     runOutput.queue_parameters &&
     typeof runOutput.queue_parameters === "object" &&

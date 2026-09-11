@@ -1,21 +1,42 @@
 # rtrvr Automation Provider
 
-JobRaker uses RTRVR for job discovery and governed auto-apply. It is the single external web provider for these workflows.
+JobRaker uses RTRVR for job discovery and governed auto-apply. It is the external web browser automation provider for these workflows.
 
-## Runtime
+## Execution Architecture
 
-The official `@rtrvr-ai/sdk` is Node 18+ and ESM. Run the worker in a trusted Node 20 environment:
+JobRaker operates on a strict separation of concerns:
+- **Jobraker decides WHAT to submit** (candidate identity, tailored resume, cover letter, screening answers, eligibility validation, submission policy).
+- **RTRVR decides HOW to submit it** (browser DOM interactions, form field detection, file uploading, pagination, navigation).
 
-```bash
-npm run automation:worker:build
-npm run automation:worker
-npm run automation:worker:http
+RTRVR is strictly forbidden from inventing or inferring critical candidate facts (such as work authorization, visa sponsorship, salary requirements, security clearance, relocation, or legal attestations). If a required critical answer is not supplied in the `ApplicationPackage`, the execution halts as `waiting_for_user`.
+
+### Primary Authoritative Runner: `process-auto-apply-queue` (Supabase Edge Function)
+
+In production, the authoritative execution path is:
+```text
+apply-to-jobs (Edge Function)
+     ↓
+applications table (provider_status = 'waiting', provider_run_output contains ApplicationPackage)
+     ↓
+dispatch / pg_net trigger / pg_cron
+     ↓
+process-auto-apply-queue (Edge Function)
+     ↓
+RTRVR API / Chrome Extension
 ```
 
-The queue worker polls Supabase for rtrvr-queued applications. The HTTP worker exposes:
+`process-auto-apply-queue` is invoked immediately upon queue insertion by `apply-to-jobs`, triggered via `pg_net` on database inserts with `provider_status = 'waiting'`, and periodically checked by `process-auto-apply-queue-cron`. It consumes the authoritative `ApplicationPackage`, enforces submission policy, generates the strict executor prompt, and tracks execution telemetry.
 
-- `POST /tools/rtrvr` for AI Chat tool calls from the `rtrvr-tools` Edge Function.
-- `POST /webhooks/rtrvr` for rtrvr webhook callbacks.
+### Secondary / Legacy Worker: `backend/automation-worker` (Node.js) & Execution Owner Isolation
+
+`backend/automation-worker` is a legacy/secondary Node.js background daemon worker that uses `@rtrvr-ai/sdk@0.2.1` with database-level lease tokens (`automation_claimed_by`, `automation_lease_token`).
+
+**Strict Execution Ownership Invariant:**
+Modern Auto Apply jobs created with an `ApplicationPackage` are stamped with `execution_owner: "edge"` in `provider_run_output`. These applications MUST execute exclusively via the Edge pipeline (`apply-to-jobs` → `applications` queue → `process-auto-apply-queue` → RTRVR).
+- At the database level, `claim_next_rtrvr_auto_apply_jobs` explicitly excludes all rows where `provider_run_output->>'execution_owner' = 'edge'` or `provider_run_output->'application_package' IS NOT NULL`.
+- Across all state transitions (`waiting`, `retrying`, `waiting_for_user`, stale lease recovery), Edge-owned applications remain permanently Edge-owned.
+- In the legacy Node worker code (`loadStartApplicationInput`), any row with `execution_owner === "edge"` or an `application_package` is rejected and its lease is returned to `waiting` without marking the application failed.
+- The legacy Node worker can never claim or execute an `ApplicationPackage` job during initial execution, retries, or recovery.
 
 ## Server Secrets
 

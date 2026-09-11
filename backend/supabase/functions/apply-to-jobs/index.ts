@@ -13,10 +13,16 @@ import {
   getAutoApplyConcurrencyLimit,
   restoreAutoApplyRunQuota,
 } from "../_shared/feature-limits.ts";
-import { refundUserCredits } from "../_shared/refunds.ts";
 import { validateSubmissionPolicy } from "../../shared/auto-apply-policy.ts";
-
-const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
+import {
+  type ApplicationPackage,
+  type ApplicationAnswer,
+  type ApplicationRequirement,
+  type AutomationMode,
+  type LifecycleState,
+  type ApplicationReasonCode,
+  evaluatePackageReadiness,
+} from "../../shared/application-package.ts";
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 const DEFAULT_RTRVR_TIMEOUT_MS = 300_000;
 
@@ -613,20 +619,36 @@ Deno.serve(async (req) => {
       body?.rtrvr_prefer_extension ?? body?.preferExtension,
       profileRow?.rtrvr_prefer_extension !== false,
     );
-    const requestedAutoSubmit = parseBoolean(
-      body?.auto_submit ?? body?.autoSubmit,
-      Boolean(profileRow?.auto_apply_auto_submit),
-    );
+    const rawRequestedMode = typeof body?.automation_mode === "string" ? body.automation_mode.trim().toLowerCase() : null;
+    const requestedAutomationMode: AutomationMode | null =
+      rawRequestedMode === "autopilot_strict" || rawRequestedMode === "autopilot" || rawRequestedMode === "review"
+        ? (rawRequestedMode as AutomationMode)
+        : null;
+
+    const requestedAutoSubmit = requestedAutomationMode === "review"
+      ? false
+      : requestedAutomationMode === "autopilot" || requestedAutomationMode === "autopilot_strict"
+        ? true
+        : parseBoolean(
+            body?.auto_submit ?? body?.autoSubmit,
+            Boolean(profileRow?.auto_apply_auto_submit),
+          );
+
+    const requestedTrueAutonomy = requestedAutomationMode === "autopilot_strict"
+      ? true
+      : requestedAutomationMode === "autopilot" || requestedAutomationMode === "review"
+        ? false
+        : parseBoolean(
+            body?.true_autonomy ?? body?.trueAutonomy,
+            false,
+          );
+
     const requestedSubmissionMode =
       typeof body?.submission_mode === "string"
         ? body.submission_mode
         : requestedAutoSubmit
           ? "autopilot"
           : "review";
-    const requestedTrueAutonomy = parseBoolean(
-      body?.true_autonomy ?? body?.trueAutonomy,
-      false,
-    );
 
     if (!jobUrls.length) {
       return new Response(
@@ -1034,16 +1056,96 @@ Deno.serve(async (req) => {
       additionalInformation = appendAutomationHints(additionalInformation);
     }
 
+    let authoritativeConfidence: number | null = null;
+    let authoritativeHardBlockers: number | null = null;
+    let resolvedEvaluationId: string | null = null;
+    let evaluatedServerSide = false;
+    let blockersEvaluated = false;
+
+    if (requestedTrueAutonomy) {
+      evaluatedServerSide = true;
+      let evalRow: any = null;
+      let evaluationInvalid = false;
+
+      if (jobContext.evaluation_id) {
+        if (!jobContext.job_id) {
+          evaluationInvalid = true;
+        } else {
+          const { data: evalById, error: evalErr } = await serviceClient
+            .from("job_evaluations")
+            .select("id, confidence_score, blockers, job_id, user_id")
+            .eq("id", jobContext.evaluation_id)
+            .eq("user_id", userId)
+            .eq("job_id", jobContext.job_id)
+            .maybeSingle();
+          if (!evalErr && evalById) {
+            evalRow = evalById;
+          } else {
+            // evaluation_id was provided but not found, or belongs to another user/job -> invalid
+            evaluationInvalid = true;
+          }
+        }
+      }
+
+      if (!evalRow && !evaluationInvalid && jobContext.job_id) {
+        const { data: evalByJob, error: jobEvalErr } = await serviceClient
+          .from("job_evaluations")
+          .select("id, confidence_score, blockers, job_id, user_id")
+          .eq("job_id", jobContext.job_id)
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!jobEvalErr && evalByJob) {
+          evalRow = evalByJob;
+        }
+      }
+
+      if (evalRow) {
+        resolvedEvaluationId = evalRow.id;
+        if (typeof evalRow.confidence_score === "number" && !isNaN(evalRow.confidence_score)) {
+          authoritativeConfidence = evalRow.confidence_score;
+        } else {
+          authoritativeConfidence = null;
+        }
+
+        blockersEvaluated = true;
+        if (Array.isArray(evalRow.blockers)) {
+          authoritativeHardBlockers = evalRow.blockers.length;
+        } else if (evalRow.blockers && typeof evalRow.blockers === "object") {
+          authoritativeHardBlockers = Object.keys(evalRow.blockers).length;
+        } else {
+          authoritativeHardBlockers = 0;
+        }
+      } else {
+        // No authoritative evaluation found (or evaluation was invalid).
+        // For True Autonomy, do NOT fall back to jobs.match_score because True Autonomy requires
+        // verified blocker evaluation from job_evaluations. Missing evaluation fails closed.
+        authoritativeConfidence = null;
+        authoritativeHardBlockers = null;
+        blockersEvaluated = false;
+      }
+    } else {
+      authoritativeConfidence =
+        jobContext.tailored_confidence ??
+        jobContext.evaluation_confidence ??
+        jobContext.match_score ??
+        null;
+      authoritativeHardBlockers = jobContext.hard_blockers;
+      blockersEvaluated = true;
+    }
+
     const applyUrl = jobUrls[0] || null;
     const policyValidation = validateSubmissionPolicy({
       targetUrl: applyUrl,
+      automationMode: requestedAutomationMode,
       requestedAutoSubmit,
       submissionMode: requestedSubmissionMode,
       trueAutonomy: requestedTrueAutonomy,
-      tailoredConfidence: jobContext.tailored_confidence,
-      evaluationConfidence: jobContext.evaluation_confidence,
-      jobMatchScore: jobContext.match_score,
-      hardBlockers: jobContext.hard_blockers,
+      tailoredConfidence: requestedTrueAutonomy ? null : jobContext.tailored_confidence,
+      evaluationConfidence: authoritativeConfidence,
+      jobMatchScore: null,
+      hardBlockers: authoritativeHardBlockers,
       saveAsDraftOnly: body?.save_as_draft_only === true || body?.saveAsDraftOnly === true,
     });
     const effectiveAutoSubmit = policyValidation.effectiveAutoSubmit;
@@ -1052,6 +1154,202 @@ Deno.serve(async (req) => {
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
     const applicationId = crypto.randomUUID();
+
+    // Assemble canonical ApplicationPackage and resolve answer provenance
+    const eligibilityAnswers: ApplicationAnswer[] = [];
+    const screeningAnswers: ApplicationAnswer[] = [];
+    const unresolvedRequirements: ApplicationRequirement[] = [];
+
+    // 1. Work authorization
+    const workAuthVal =
+      userInput?.work_authorization?.authorized ??
+      (typeof userInput?.authorized_to_work === "boolean" ? userInput.authorized_to_work : null);
+    eligibilityAnswers.push({
+      questionKey: "work_authorization",
+      questionText: "Are you legally authorized to work in this job's jurisdiction?",
+      value: workAuthVal,
+      category: "work_authorization",
+      provenance: {
+        source: workAuthVal !== null ? "user_answer" : "candidate_profile",
+      },
+      confidence: workAuthVal !== null ? 1.0 : 0.0,
+      mutable: false,
+      requiresUserInput: workAuthVal === null,
+    });
+
+    // 2. Visa sponsorship
+    const sponsorshipVal =
+      userInput?.visa_sponsorship ??
+      userInput?.requires_sponsorship ??
+      null;
+    eligibilityAnswers.push({
+      questionKey: "visa_sponsorship",
+      questionText: "Will you now or in the future require visa sponsorship?",
+      value: sponsorshipVal,
+      category: "sponsorship",
+      provenance: {
+        source: sponsorshipVal !== null ? "user_answer" : "candidate_profile",
+      },
+      confidence: sponsorshipVal !== null ? 1.0 : 0.0,
+      mutable: false,
+      requiresUserInput: sponsorshipVal === null,
+    });
+
+    // 3. Desired compensation / salary
+    const salaryVal = jobContext.salary || userInput?.desired_salary || null;
+    eligibilityAnswers.push({
+      questionKey: "desired_salary",
+      questionText: "What is your target or minimum salary compensation requirement?",
+      value: salaryVal,
+      category: "salary",
+      provenance: {
+        source: salaryVal ? "candidate_profile" : "user_answer",
+      },
+      confidence: salaryVal ? 0.95 : 0.0,
+      mutable: true,
+      requiresUserInput: false,
+    });
+
+    // 4. Security clearance
+    const clearanceVal = userInput?.security_clearance ?? null;
+    eligibilityAnswers.push({
+      questionKey: "security_clearance",
+      questionText: "Do you hold an active government or defense security clearance?",
+      value: clearanceVal,
+      category: "security_clearance",
+      provenance: {
+        source: clearanceVal !== null ? "user_answer" : "candidate_profile",
+      },
+      confidence: clearanceVal !== null ? 1.0 : 0.0,
+      mutable: false,
+      requiresUserInput: false,
+    });
+
+    // 5. Relocation
+    const relocationVal = userInput?.willing_to_relocate ?? null;
+    eligibilityAnswers.push({
+      questionKey: "relocation",
+      questionText: "Are you willing to relocate for this role if required?",
+      value: relocationVal,
+      category: "relocation",
+      provenance: {
+        source: relocationVal !== null ? "user_answer" : "candidate_profile",
+      },
+      confidence: relocationVal !== null ? 1.0 : 0.0,
+      mutable: true,
+      requiresUserInput: false,
+    });
+
+    // 6. Screening answers from answer_bank / candidate experiences
+    if (Array.isArray(answerRows)) {
+      for (const row of answerRows) {
+        if (row?.question && row?.body) {
+          screeningAnswers.push({
+            questionKey: row.slug || undefined,
+            questionText: row.question,
+            value: row.body,
+            category: "general",
+            provenance: {
+              source: "verified_memory",
+              sourceId: row.id,
+            },
+            confidence: 0.98,
+            mutable: false,
+            requiresUserInput: false,
+          });
+        }
+      }
+    }
+
+    if (authoritativeHardBlockers && authoritativeHardBlockers > 0) {
+      unresolvedRequirements.push({
+        category: "hard_disqualifier",
+        title: `${authoritativeHardBlockers} hard blocker(s) detected`,
+        resolved: false,
+        requiresUserInput: false,
+      });
+    }
+
+    const applicationPackage: ApplicationPackage = {
+      version: 1,
+      applicationId,
+      job: {
+        id: jobContext.job_id || "",
+        title: jobContext.job_title || title || "Automation run",
+        company: jobContext.company || "Unknown",
+        applyUrl: applyUrl || "",
+        source: jobUrls[0],
+      },
+      candidate: {
+        userId,
+        name: candidateFullName || undefined,
+        email: candidateEmail || undefined,
+        phone: candidatePhone || undefined,
+        location: candidateLocation || undefined,
+        linkedinUrl: typeof profileRow?.linkedin_url === "string" ? profileRow.linkedin_url : undefined,
+        githubUrl: typeof profileRow?.github_url === "string" ? profileRow.github_url : undefined,
+      },
+      resume: {
+        resumeId: resolvedStoredResume?.id || requestedResumeId || undefined,
+        storagePath: resolvedStoredResume?.filePath || undefined,
+        fileName: resolvedStoredResume?.fileName || undefined,
+        mimeType: resolvedStoredResume?.mimeType || undefined,
+        text: resumeText || undefined,
+        tailored: Boolean(jobContext.tailored_confidence || body?.is_tailored),
+      },
+      coverLetter: coverLetter ? { text: coverLetter, generated: true } : undefined,
+      screeningAnswers,
+      eligibilityAnswers,
+      submissionPolicy: {
+        mode: policyValidation.effectiveAutomationMode,
+        requestedFinalSubmit: requestedAutoSubmit,
+        effectiveFinalSubmit: policyValidation.effectiveAutoSubmit,
+        policyDecision: policyValidation.mayFinalSubmit ? "approved" : "review_required",
+        reasonCode: policyValidation.code || (!policyValidation.effectiveAutoSubmit ? "user_selected_review" : undefined),
+      },
+      confidence: {
+        jobFit: typeof jobContext.match_score === "number" ? jobContext.match_score : null,
+        eligibility: authoritativeConfidence,
+        candidateDataCompleteness: candidateFullName && candidateEmail ? 100 : 70,
+        applicationAnswerConfidence: 95,
+      },
+      unresolvedRequirements,
+      provenance: {
+        evaluationId: resolvedEvaluationId || jobContext.evaluation_id || null,
+        resumeId: resolvedStoredResume?.id || requestedResumeId || null,
+        generatedAt: nowIso,
+      },
+    };
+
+    const packageReadiness = evaluatePackageReadiness(applicationPackage);
+
+    // Critical answer invariant: For BOTH autopilot and autopilot_strict,
+    // ANY unresolved critical question prevents autonomous final submission!
+    const hasUnresolvedCritical = packageReadiness.unresolvedCriticalQuestions.length > 0;
+    if (policyValidation.effectiveAutoSubmit && hasUnresolvedCritical) {
+      policyValidation.mayFinalSubmit = false;
+      policyValidation.effectiveAutoSubmit = false;
+      policyValidation.reason = `Missing required critical answers: ${packageReadiness.unresolvedCriticalQuestions.slice(0, 2).join(", ")}`;
+      applicationPackage.submissionPolicy.effectiveFinalSubmit = false;
+      applicationPackage.submissionPolicy.reasonCode = "missing_required_answer";
+    }
+
+    const initialLifecycleState: LifecycleState = policyValidation.effectiveAutoSubmit
+      ? "queued"
+      : hasUnresolvedCritical && (policyValidation.effectiveAutomationMode === "autopilot" || policyValidation.effectiveAutomationMode === "autopilot_strict")
+        ? "waiting_for_user"
+        : policyValidation.code
+          ? "needs_review"
+          : "prepared";
+
+    const initialReasonCode: ApplicationReasonCode | null =
+      hasUnresolvedCritical && (policyValidation.effectiveAutomationMode === "autopilot" || policyValidation.effectiveAutomationMode === "autopilot_strict")
+        ? "missing_required_answer"
+        : policyValidation.code || (!policyValidation.effectiveAutoSubmit ? "user_selected_review" : null);
+
+    const effectiveAutoSubmit = policyValidation.effectiveAutoSubmit;
+    const effectiveSubmissionMode = policyValidation.effectiveSubmissionMode;
+
     const rtrvrWebhookBase =
       (Deno.env.get("RTRVR_WEBHOOK_URL") || Deno.env.get("AUTOMATION_WORKER_PUBLIC_URL") || "")
         .replace(/\/$/, "");
@@ -1089,16 +1387,20 @@ Deno.serve(async (req) => {
       autoSubmit: effectiveAutoSubmit,
       submissionMode: effectiveSubmissionMode,
       trueAutonomy: requestedTrueAutonomy,
-      tailoredConfidence: jobContext.tailored_confidence,
-      evaluationConfidence: jobContext.evaluation_confidence,
-      hardBlockers: jobContext.hard_blockers,
+      tailoredConfidence: requestedTrueAutonomy ? null : jobContext.tailored_confidence,
+      evaluationConfidence: authoritativeConfidence,
+      hardBlockers: authoritativeHardBlockers,
       policyValidation: {
-        mayFinalSubmit: policyValidation.mayFinalSubmit,
-        effectiveAutoSubmit: policyValidation.effectiveAutoSubmit,
-        effectiveSubmissionMode: policyValidation.effectiveSubmissionMode,
-        autonomyConfidence: policyValidation.autonomyConfidence,
-        isTrustedSource: policyValidation.isTrustedSource,
-        hardBlockers: policyValidation.hardBlockers,
+        evaluated_server_side: evaluatedServerSide,
+        evaluation_id: resolvedEvaluationId,
+        confidence: policyValidation.autonomyConfidence,
+        hard_blockers: policyValidation.hardBlockers,
+        blockers_evaluated: blockersEvaluated,
+        is_trusted_source: policyValidation.isTrustedSource,
+        may_final_submit: policyValidation.mayFinalSubmit,
+        effective_auto_submit: policyValidation.effectiveAutoSubmit,
+        effective_submission_mode: policyValidation.effectiveSubmissionMode,
+        effective_automation_mode: policyValidation.effectiveAutomationMode,
         code: policyValidation.code,
         reason: policyValidation.reason,
       },
@@ -1110,22 +1412,13 @@ Deno.serve(async (req) => {
       metadata: {
         source: "apply-to-jobs",
         jobId: jobContext.job_id,
-        evaluationId: jobContext.evaluation_id,
+        evaluationId: resolvedEvaluationId || jobContext.evaluation_id,
         rtrvrRecordingContext,
       },
     };
     const queueParameters = {
       provider: "rtrvr",
       rtrvr: rtrvrStartInput,
-    };
-
-    const data = {
-      provider: "rtrvr",
-      status: "waiting",
-      run_id: null,
-      requested_mode: requestedBrowserPreference,
-      selected_mode: null,
-      fallback_applied: false,
     };
 
     const applicationPayload = {
@@ -1165,12 +1458,45 @@ Deno.serve(async (req) => {
       ai_confidence_score: jobContext.ai_confidence_score,
       user_review_notes: null,
       provider_run_output: {
+        execution_owner: "edge",
         queue_parameters: queueParameters,
-        submission_mode: effectiveSubmissionMode,
+        auto_submit: policyValidation.effectiveAutoSubmit,
+        submission_mode: policyValidation.effectiveSubmissionMode,
         true_autonomy: requestedTrueAutonomy,
-        policy_validation: policyValidation,
+        automation_mode: policyValidation.effectiveAutomationMode,
+        application_package: applicationPackage,
+        lifecycle_state: initialLifecycleState,
+        reason_code: initialReasonCode,
+        submission_readiness: packageReadiness,
+        policy_validation: {
+          evaluated_server_side: evaluatedServerSide,
+          evaluation_id: resolvedEvaluationId,
+          confidence: policyValidation.autonomyConfidence,
+          hard_blockers: policyValidation.hardBlockers,
+          blockers_evaluated: blockersEvaluated,
+          is_trusted_source: policyValidation.isTrustedSource,
+          may_final_submit: policyValidation.mayFinalSubmit,
+          effective_auto_submit: policyValidation.effectiveAutoSubmit,
+          effective_submission_mode: policyValidation.effectiveSubmissionMode,
+          effective_automation_mode: policyValidation.effectiveAutomationMode,
+          code: policyValidation.code,
+          reason: policyValidation.reason,
+        },
       },
     };
+
+    console.log(JSON.stringify({
+      event: "auto_apply_enqueued",
+      application_id: applicationId,
+      job_id: jobContext.job_id,
+      application_package_version: applicationPackage.version,
+      automation_mode: policyValidation.effectiveAutomationMode,
+      preparation_stage: "enqueued",
+      submission_policy_result: policyValidation.mayFinalSubmit ? "authorized" : "denied",
+      blocking_reason: policyValidation.reason || null,
+      provider: "rtrvr",
+      final_stage: applicationPayload.canonical_stage,
+    }));
 
     const upgradeDraftApplication = async (): Promise<boolean> => {
       if (!jobContext.job_id) return false;

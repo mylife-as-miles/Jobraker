@@ -40,6 +40,7 @@ import {
 } from "../../../components/ui/tooltip";
 import { useToast } from "../../../components/ui/toast";
 import { createClient } from "../../../lib/supabaseClient";
+import { normalizeQuestionCategory } from "../../../lib/applicationPackage";
 
 import {
   Search,
@@ -57,19 +58,15 @@ import {
   Zap,
   Trash2,
   AlertTriangle,
+  AlertCircle,
   Info,
   Clock,
   Sparkles,
-  ShieldCheck,
-  Layers,
-  Loader2,
-  Activity,
   FileText,
   CheckCircle2,
 } from "lucide-react";
 import {
   useJobIntelligenceTasks,
-  type JobIntelligenceTask,
 } from "../../../hooks/useJobIntelligenceTasks";
 import {
   KanbanProvider,
@@ -350,9 +347,26 @@ function isQueuedApplication(
   );
 }
 
+function isStaleRunningApplication(
+  providerStatus?: string | null,
+  updatedAt?: string | null,
+  heartbeatAt?: string | null,
+) {
+  if (providerStatus !== "rtrvr_running") return false;
+  const lastActive = heartbeatAt
+    ? new Date(heartbeatAt).getTime()
+    : updatedAt
+    ? new Date(updatedAt).getTime()
+    : 0;
+  if (!lastActive) return false;
+  return Date.now() - lastActive > 10 * 60_000;
+}
+
 function getApplicationStatusDisplay(
   status: ApplicationStatus,
   providerStatus?: string | null,
+  updatedAt?: string | null,
+  heartbeatAt?: string | null,
 ) {
   if (isQueuedApplication(status, providerStatus)) return "Queued";
   if (providerStatus === "rtrvr_running") {
@@ -694,6 +708,7 @@ function ApplicationPage() {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info } = useToast();
+  const gamificationHook = useGamification();
   const {
     applications,
     loading: appsLoading,
@@ -708,7 +723,6 @@ function ApplicationPage() {
   const getLinkedAiTasks = useCallback(
     (app: { company?: string; job_title?: string; id?: string }) => {
       const companyLower = (app.company || "").toLowerCase().trim();
-      const titleLower = (app.job_title || "").toLowerCase().trim();
       return aiTasks.filter((t) => {
         const tComp = String(t.params?.company || "")
           .toLowerCase()
@@ -737,7 +751,7 @@ function ApplicationPage() {
   const [rawSearch, setRawSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<
-    "All" | ApplicationStatus
+    "All" | ApplicationStatus | "🤖 AI Tasks"
   >("All");
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [viewMode, setViewMode] = useState<
@@ -759,6 +773,8 @@ function ApplicationPage() {
   const [notesText, setNotesText] = useState("");
   const [editingSalary, setEditingSalary] = useState(false);
   const [salaryText, setSalaryText] = useState("");
+  const [userAnswerInput, setUserAnswerInput] = useState("");
+  const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [detailEvaluation, setDetailEvaluation] =
     useState<JobEvaluationReportData | null>(null);
   const [detailEvaluationLoading, setDetailEvaluationLoading] = useState(false);
@@ -811,6 +827,7 @@ function ApplicationPage() {
     if (detailApp) {
       setNotesText(detailApp.notes || "");
       setSalaryText(detailApp.salary || "");
+      setUserAnswerInput("");
       setEditingNotes(false);
       setEditingSalary(false);
     }
@@ -964,7 +981,7 @@ function ApplicationPage() {
           }
           return;
         }
-        const { data, error } = await supabase.functions.invoke("gmail-auth", {
+        const { data } = await supabase.functions.invoke("gmail-auth", {
           body: { action: "status" },
         });
         const payload = data as {
@@ -1418,7 +1435,9 @@ function ApplicationPage() {
           >
             {APPLICATION_STATUS_FILTERS.map((s) => {
               const color =
-                s === "All" ? "#558eff" : getApplicationStatusColor(s);
+                s === "All" || s === "🤖 AI Tasks"
+                  ? "#558eff"
+                  : getApplicationStatusColor(s as ApplicationStatus);
               const isActive = selectedStatus === s;
 
               return (
@@ -1900,90 +1919,243 @@ function ApplicationPage() {
               </div>
             )}
 
-            {(detailApp.provider_status === "rtrvr_running" ||
-              detailApp.provider_status === "waiting_for_user" ||
-              detailApp.provider_status === "prepared" ||
-              detailApp.automation_fallback_applied ||
-              isQueuedApplication(detailApp.status, detailApp.provider_status)) && (
-              <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4'>
-                <div className='flex items-start gap-3'>
-                  <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2fd968]/25 bg-[#2fd968]/10 text-[#2fd968]'>
-                    <Clock className='h-4 w-4' />
-                  </div>
-                  <div className='min-w-0 space-y-2 flex-1'>
-                    <div className='text-sm font-semibold text-foreground/90'>
-                      {detailApp.provider_status === "waiting_for_user"
-                        ? "Security verification requires your attention"
-                        : detailApp.provider_status === "prepared"
-                          ? "Application prepared for review"
-                          : isStaleRunningApplication(detailApp.provider_status, detailApp.updated_at, (detailApp as any).automation_heartbeat_at)
-                            ? "Runner stalled (Saved Draft Available)"
-                            : detailApp.automation_fallback_applied
-                              ? "Continuing with advanced fallback"
-                              : detailApp.provider_status === "rtrvr_running"
-                                ? "Automation running"
-                                : "Application Queued"}
+            {(() => {
+              const runOutput = (detailApp as any).provider_run_output;
+              const appPackage = runOutput?.application_package;
+              const unresolvedReq = appPackage?.unresolvedRequirements?.find(
+                (r: any) => r.requiresUserInput && !r.resolved,
+              );
+              const unresolvedAns = appPackage?.screeningAnswers?.find(
+                (a: any) =>
+                  a.requiresUserInput &&
+                  (a.value === null || a.value === undefined || a.value === ""),
+              );
+              const rtrvrUnresolved = runOutput?.rtrvr_result?.unresolvedQuestion;
+              const outstandingRequirementId =
+                unresolvedReq?.requirementId ||
+                unresolvedReq?.id ||
+                unresolvedAns?.requirementId ||
+                unresolvedAns?.questionKey ||
+                rtrvrUnresolved?.requirementId ||
+                unresolvedReq?.title ||
+                unresolvedAns?.questionText ||
+                rtrvrUnresolved?.questionText;
+              const outstandingQuestion =
+                unresolvedReq?.title ||
+                unresolvedAns?.questionText ||
+                rtrvrUnresolved?.questionText;
+              const rawCategory =
+                unresolvedAns?.category ||
+                (typeof unresolvedReq?.category === "string" ? unresolvedReq.category : null) ||
+                rtrvrUnresolved?.category;
+              const outstandingCategory = normalizeQuestionCategory(rawCategory, outstandingQuestion);
+              const inputType =
+                unresolvedReq?.inputType ||
+                unresolvedAns?.inputType ||
+                rtrvrUnresolved?.inputType;
+              const isBooleanQuestion =
+                inputType === "boolean" ||
+                [
+                  "sponsorship",
+                  "work_authorization",
+                  "relocation",
+                  "security_clearance",
+                  "legal",
+                ].includes(outstandingCategory) ||
+                (outstandingQuestion
+                  ? /^(will|do|are|have|is|can)\s/i.test(outstandingQuestion.trim())
+                  : false);
+
+              const isVisible =
+                detailApp.provider_status === "rtrvr_running" ||
+                detailApp.provider_status === "waiting_for_user" ||
+                detailApp.provider_status === "prepared" ||
+                detailApp.automation_fallback_applied ||
+                isQueuedApplication(detailApp.status, detailApp.provider_status);
+
+              if (!isVisible) return null;
+
+              return (
+                <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4'>
+                  <div className='flex items-start gap-3'>
+                    <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2fd968]/25 bg-[#2fd968]/10 text-[#2fd968]'>
+                      <Clock className='h-4 w-4' />
                     </div>
-                    <div className='flex flex-wrap gap-2 text-xs text-foreground/60'>
-                      {detailApp.automation_provider && (
-                        <span className='rounded-md border border-foreground/10 px-2 py-1'>
-                          Provider: {detailApp.automation_provider}
-                        </span>
+                    <div className='min-w-0 space-y-2 flex-1'>
+                      <div className='text-sm font-semibold text-foreground/90'>
+                        {detailApp.provider_status === "waiting_for_user"
+                          ? "Security verification requires your attention"
+                          : detailApp.provider_status === "prepared"
+                            ? "Application prepared for review"
+                            : isStaleRunningApplication(detailApp.provider_status, detailApp.updated_at, (detailApp as any).automation_heartbeat_at)
+                              ? "Runner stalled (Saved Draft Available)"
+                              : detailApp.automation_fallback_applied
+                                ? "Continuing with advanced fallback"
+                                : detailApp.provider_status === "rtrvr_running"
+                                  ? "Automation running"
+                                  : "Application Queued"}
+                      </div>
+                      <div className='flex flex-wrap gap-2 text-xs text-foreground/60'>
+                        {detailApp.automation_provider && (
+                          <span className='rounded-md border border-foreground/10 px-2 py-1'>
+                            Provider: {detailApp.automation_provider}
+                          </span>
+                        )}
+                        {detailApp.automation_selected_mode && (
+                          <span className='rounded-md border border-foreground/10 px-2 py-1'>
+                            Mode:{" "}
+                            {detailApp.automation_selected_mode === "extension"
+                              ? "My Chrome"
+                              : "Jobraker Cloud"}
+                          </span>
+                        )}
+                        {detailApp.automation_fallback_applied && (
+                          <span className='rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-amber-200'>
+                            Fallback applied
+                          </span>
+                        )}
+                      </div>
+                      {(detailApp.failure_reason ||
+                        detailApp.automation_fallback_reason) && (
+                        <p className='text-sm leading-relaxed text-foreground/70'>
+                          {detailApp.failure_reason ||
+                            detailApp.automation_fallback_reason}
+                        </p>
                       )}
-                      {detailApp.automation_selected_mode && (
-                        <span className='rounded-md border border-foreground/10 px-2 py-1'>
-                          Mode:{" "}
-                          {detailApp.automation_selected_mode === "extension"
-                            ? "My Chrome"
-                            : "Jobraker Cloud"}
-                        </span>
+
+                      {detailApp.provider_status === "waiting_for_user" && outstandingQuestion && (
+                        <div className='mt-3 p-3.5 rounded-lg border border-amber-400/30 bg-amber-500/10 space-y-2.5'>
+                          <div className='flex items-center gap-1.5 text-xs font-semibold text-amber-300'>
+                            <AlertCircle className='h-3.5 w-3.5' />
+                            <span>Needs your input</span>
+                          </div>
+                          <div className='text-sm font-medium text-foreground/90 leading-snug'>
+                            {outstandingQuestion}
+                          </div>
+                          {isBooleanQuestion ? (
+                            <div className='flex items-center gap-2 pt-1'>
+                              <button
+                                type='button'
+                                onClick={() => setUserAnswerInput("Yes")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+                                  userAnswerInput === "Yes"
+                                    ? "bg-[#2fd968] text-black border-[#2fd968]"
+                                    : "border-foreground/20 bg-background/50 text-foreground/80 hover:bg-foreground/10"
+                                }`}
+                              >
+                                Yes
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() => setUserAnswerInput("No")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+                                  userAnswerInput === "No"
+                                    ? "bg-[#2fd968] text-black border-[#2fd968]"
+                                    : "border-foreground/20 bg-background/50 text-foreground/80 hover:bg-foreground/10"
+                                }`}
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <input
+                              type='text'
+                              value={userAnswerInput}
+                              onChange={(e) => setUserAnswerInput(e.target.value)}
+                              placeholder='Type your answer...'
+                              className='w-full text-xs px-3 py-2 rounded-md border border-foreground/20 bg-background/60 text-foreground placeholder:text-foreground/40 focus:outline-none focus:border-[#2fd968]'
+                            />
+                          )}
+                          <div className='flex justify-end pt-1'>
+                            <button
+                              type='button'
+                              disabled={!userAnswerInput.trim() || isSubmittingAnswer}
+                              onClick={async () => {
+                                try {
+                                  setIsSubmittingAnswer(true);
+                                  const { data, error } = await supabase.functions.invoke(
+                                    "resolve-screening-answer",
+                                    {
+                                      body: {
+                                        applicationId: detailApp.id,
+                                        requirementId: outstandingRequirementId,
+                                        answer: userAnswerInput.trim(),
+                                      },
+                                    },
+                                  );
+                                  if (error) {
+                                    let errPayload: any = null;
+                                    try {
+                                      if (typeof (error as any).context?.json === "function") {
+                                        errPayload = await (error as any).context.json();
+                                      }
+                                    } catch {}
+                                    if ((error as any)?.status === 409 || errPayload?.code === "application_state_changed") {
+                                      toastError("Application state changed concurrently. Refreshed application; please retry your answer if still required.");
+                                      setUserAnswerInput("");
+                                      await refresh();
+                                      return;
+                                    }
+                                    throw error;
+                                  }
+                                  if (data?.code === "application_state_changed") {
+                                    toastError("Application state changed concurrently. Refreshed application; please retry your answer if still required.");
+                                    setUserAnswerInput("");
+                                    await refresh();
+                                    return;
+                                  }
+                                  if (data?.error) throw new Error(data.error);
+                                  success("Answer recorded. Application resumed.");
+                                  setUserAnswerInput("");
+                                  await refresh();
+                                } catch (err: any) {
+                                  toastError(err?.message || "Failed to resolve question.");
+                                } finally {
+                                  setIsSubmittingAnswer(false);
+                                }
+                              }}
+                              className='px-4 py-1.5 text-xs font-semibold rounded-md bg-[#2fd968] text-black hover:bg-[#2fd968]/90 disabled:opacity-50 transition-colors'
+                            >
+                              {isSubmittingAnswer ? "Submitting..." : "Continue application"}
+                            </button>
+                          </div>
+                        </div>
                       )}
-                      {detailApp.automation_fallback_applied && (
-                        <span className='rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-amber-200'>
-                          Fallback applied
-                        </span>
-                      )}
-                    </div>
-                    {(detailApp.failure_reason ||
-                      detailApp.automation_fallback_reason) && (
-                      <p className='text-sm leading-relaxed text-foreground/70'>
-                        {detailApp.failure_reason ||
-                          detailApp.automation_fallback_reason}
-                      </p>
-                    )}
-                    <div className='mt-2 pt-2 border-t border-foreground/10 flex flex-wrap items-center gap-2'>
-                      <button
-                        type='button'
-                        onClick={async () => {
-                          await update(detailApp.id, {
-                            status: "Draft",
-                            canonical_stage: "draft_ready",
-                            provider_status: "failed",
-                            failure_reason: "Reset to Draft by user.",
-                          });
-                        }}
-                        className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 transition-colors'
-                      >
-                        Reset to Draft
-                      </button>
-                      <button
-                        type='button'
-                        onClick={async () => {
-                          await update(detailApp.id, {
-                            status: "Applied",
-                            canonical_stage: "submitted",
-                            provider_status: "succeeded",
-                          });
-                        }}
-                        className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#2fd968]/40 bg-[#2fd968]/10 text-[#2fd968] hover:bg-[#2fd968]/20 transition-colors'
-                      >
-                        Mark as Applied
-                      </button>
+
+                      <div className='mt-2 pt-2 border-t border-foreground/10 flex flex-wrap items-center gap-2'>
+                        <button
+                          type='button'
+                          onClick={async () => {
+                            await update(detailApp.id, {
+                              status: "Draft",
+                              canonical_stage: "draft_ready",
+                              provider_status: "failed",
+                              failure_reason: "Reset to Draft by user.",
+                            });
+                          }}
+                          className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 transition-colors'
+                        >
+                          Reset to Draft
+                        </button>
+                        <button
+                          type='button'
+                          onClick={async () => {
+                            await update(detailApp.id, {
+                              status: "Applied",
+                              canonical_stage: "submitted",
+                              provider_status: "succeeded",
+                            });
+                          }}
+                          className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#2fd968]/40 bg-[#2fd968]/10 text-[#2fd968] hover:bg-[#2fd968]/20 transition-colors'
+                        >
+                          Mark as Applied
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Draft Status & AI Confidence Badges */}
             {(detailApp.draft_status ||

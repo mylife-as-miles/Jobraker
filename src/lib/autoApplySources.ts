@@ -13,6 +13,7 @@ import {
   isTrustedAutoApplySource,
   extractAutonomyConfidence,
   validateSubmissionPolicy,
+  type AutomationMode,
   type AutoApplySubmissionMode,
   type TrueAutonomyRejectionCode,
   type SubmissionPolicyValidationParams,
@@ -29,6 +30,7 @@ export {
 };
 
 export type {
+  AutomationMode,
   AutoApplySubmissionMode,
   TrueAutonomyRejectionCode,
   SubmissionPolicyValidationParams,

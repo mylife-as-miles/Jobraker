@@ -10,6 +10,7 @@ import { validateAutomationUrl } from "../urlSecurity.js";
 import {
   claimAutomationWorkerNonce,
   claimNextRtrvrApplications,
+  loadStartApplicationInput,
   renewRtrvrApplicationLease,
   updateApplicationWithAutomationResult,
 } from "../database.js";
@@ -491,5 +492,51 @@ describe("rtrvr automation integration", () => {
     expect(migration).toContain("automation_idempotency_key is not null");
     expect(migration).toContain("automation_lease_expires_at is null or automation_lease_expires_at < now()");
     expect(migration).toContain("provider_status, automation_lease_expires_at");
+  });
+
+  it("strictly excludes Edge-owned ApplicationPackage rows from Node worker claiming in migration", () => {
+    const migration = readFileSync(
+      resolve("backend/supabase/migrations/20260911090000_isolate_edge_auto_apply_queue.sql"),
+      "utf8",
+    ).toLowerCase();
+    expect(migration).toContain("claim_next_rtrvr_auto_apply_jobs");
+    expect(migration).toContain("'execution_owner' <> 'edge'");
+    expect(migration).toContain("application_package' is null");
+    expect(migration).toContain("resume_waiting_rtrvr_auto_apply_job");
+    expect(migration).not.toContain("resolve_application_screening_answer");
+  });
+
+  it("loadStartApplicationInput returns null for Edge-owned or ApplicationPackage applications", async () => {
+    const edgeOwnedApp = {
+      id: "app-edge-1",
+      user_id: "user-1",
+      agent_run_id: null,
+      job_id: "job-1",
+      app_url: "https://example.com/apply",
+      automation_idempotency_key: "idem-edge",
+      provider_run_output: {
+        execution_owner: "edge",
+        application_package: { version: 1 },
+        queue_parameters: {
+          rtrvr: {
+            applicationUrl: "https://example.com/apply",
+            idempotencyKey: "idem-edge",
+          },
+        },
+      },
+    };
+
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: edgeOwnedApp, error: null }),
+          }),
+        }),
+      }),
+    };
+
+    const result = await loadStartApplicationInput(supabase as never, "app-edge-1");
+    expect(result).toBeNull();
   });
 });

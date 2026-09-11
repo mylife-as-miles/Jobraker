@@ -101,6 +101,40 @@ export async function processNextBatch(): Promise<number> {
       ? { ...loadedInput, attemptNumber }
       : null;
     if (!input) {
+      const { data: checkData } = await supabase
+        .from("applications")
+        .select("provider_run_output")
+        .eq("id", applicationId)
+        .maybeSingle();
+      const runOutput =
+        checkData?.provider_run_output &&
+        typeof checkData.provider_run_output === "object" &&
+        !Array.isArray(checkData.provider_run_output)
+          ? (checkData.provider_run_output as Record<string, unknown>)
+          : {};
+      const isEdgeOwned = runOutput.execution_owner === "edge" || Boolean(runOutput.application_package);
+
+      if (isEdgeOwned) {
+        console.warn(
+          "automation_worker.skipped_edge_owned_application",
+          redactSensitiveValue({ applicationId, workerId }),
+        );
+        await supabase
+          .from("applications")
+          .update({
+            provider_status: "waiting",
+            automation_claimed_by: null,
+            automation_lease_token: null,
+            automation_lease_expires_at: null,
+            automation_heartbeat_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", applicationId)
+          .eq("automation_claimed_by", workerId)
+          .eq("automation_lease_token", leaseToken);
+        continue;
+      }
+
       const { data, error } = await supabase
         .from("applications")
         .update({

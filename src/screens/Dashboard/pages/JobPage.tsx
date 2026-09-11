@@ -28,6 +28,7 @@ import {
   X,
   Pencil,
   Globe,
+  DollarSign,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -108,11 +109,14 @@ import {
   hasFeatureAccess,
   hasSubscriptionAccess,
   getMinimumAutoApplyTier,
-  getNextAutoApplyEnabledTier,
 } from "@/lib/subscriptionAccess";
 import {
   evaluateTrueAutonomyDecision,
 } from "@/lib/autoApplySources";
+import {
+  AutomationMode,
+  mapAutomationModeToLegacyFlags,
+} from "@/lib/applicationPackage";
 import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
@@ -1297,6 +1301,10 @@ export const JobPage = (): JSX.Element => {
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<ApplicationDraftData | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(false);
+  const [automationMode, setAutomationMode] = useState<AutomationMode>("review");
+  const [singleJobCoverLetterMode, setSingleJobCoverLetterMode] = useState<
+    "auto" | "saved" | "none"
+  >("auto");
   const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
     "automatic" | "my_chrome" | "jobraker_cloud"
   >("automatic");
@@ -1471,7 +1479,9 @@ export const JobPage = (): JSX.Element => {
     setBrowserExecutionPreference(
       profile.browser_execution_preference || "automatic",
     );
-    setAutoSubmitApplications(Boolean(profile.auto_apply_auto_submit));
+    const autoSubmit = Boolean(profile.auto_apply_auto_submit);
+    setAutoSubmitApplications(autoSubmit);
+    setAutomationMode(autoSubmit ? "autopilot" : "review");
   }, [profile?.browser_execution_preference, profile?.auto_apply_auto_submit]);
 
   const saveBrowserExecutionPreference = useCallback(
@@ -1492,6 +1502,17 @@ export const JobPage = (): JSX.Element => {
       } as Partial<Profile>);
     },
     [updateProfile],
+  );
+
+  const handleAutomationModeChange = useCallback(
+    (mode: AutomationMode) => {
+      setAutomationMode(mode);
+      const flags = mapAutomationModeToLegacyFlags(mode);
+      setAutoSubmitApplications(flags.autoSubmit);
+      setTrueAutonomyEnabled(flags.trueAutonomy);
+      saveAutoSubmitPreference(flags.autoSubmit);
+    },
+    [saveAutoSubmitPreference],
   );
 
   // Register walkthrough for Jobs page
@@ -2791,7 +2812,7 @@ export const JobPage = (): JSX.Element => {
           company: e.company,
           description: e.description,
         })),
-        location: selectedLocation,
+        ...(selectedLocation ? { location: selectedLocation } : {}) as any,
       });
       if (roles.length > 0) {
         setAiSuggestedRoles(roles);
@@ -3173,7 +3194,7 @@ export const JobPage = (): JSX.Element => {
       }
       setSelectedResumeId(preferredResumeId);
       setDraftData(existingDraft);
-      setAutoApplyStep(existingDraft ? 4 : 1);
+      setAutoApplyStep(targetJob ? 1 : (existingDraft ? 4 : 1));
       if (!hasAutoApplyAccess) {
         setResumeDialogOpen(true);
         return;
@@ -3837,54 +3858,87 @@ export const JobPage = (): JSX.Element => {
           return evaluation;
         };
 
-        if (
-          hasJobEvaluationAccess &&
-          jobsWithTargets.length === 1 &&
-          !forceSubmit &&
-          !draftData
-        ) {
+        if (jobsWithTargets.length === 1) {
           const targetJob = jobsWithTargets[0].job;
-          setEvaluatingJob(true);
-          try {
-            const evaluation = await getEvaluationForJob(targetJob);
-            setAiEvaluation(evaluation);
+          setAutoApplyStep(3);
+          pushLog(`Preparing Auto Apply for ${targetJob.company} (${targetJob.title})...`, "info");
 
-            const hasHardBlockers =
-              (evaluation.blockers?.length ?? 0) > 0 ||
-              (evaluation.missing_requirements?.length ?? 0) > 0 ||
-              evaluation.canonical_decision === "risky" ||
-              evaluation.canonical_decision === "no_go" ||
-              evaluation.confidence_score < 70;
+          if (hasJobEvaluationAccess && !forceSubmit && !draftData) {
+            setEvaluatingJob(true);
+            try {
+              pushLog("Evaluating job fit and requirements...", "info");
+              const evaluation = await getEvaluationForJob(targetJob);
+              setAiEvaluation(evaluation);
 
-            if (hasHardBlockers) {
-              setAutoApplyStep(2);
-              return;
+              const hasHardBlockers =
+                (evaluation.blockers?.length ?? 0) > 0 ||
+                (evaluation.missing_requirements?.length ?? 0) > 0 ||
+                evaluation.canonical_decision === "no_go";
+
+              if (hasHardBlockers) {
+                pushLog(
+                  `Disqualifier detected for ${targetJob.title}. Action required before submitting.`,
+                  "error",
+                );
+                setAutoApplyStep(2);
+                return;
+              }
+              pushLog(
+                `Job requirements evaluated: ${Math.round(evaluation.confidence_score)}% confidence.`,
+                "success",
+              );
+            } catch (evalErr) {
+              console.error("Failed to evaluate job fit", evalErr);
+              pushLog("Job evaluation check skipped due to a service error.", "info");
+            } finally {
+              setEvaluatingJob(false);
             }
-          } catch (evalErr) {
-            console.error("Failed to evaluate job fit", evalErr);
-            toastError(
-              "Job Evaluation Failed",
-              "The AI model encountered an error evaluating this job.",
-            );
-            safeInfo(
-              "AI Evaluation Failed",
-              "Could not complete confidence check, proceeding to draft review instead.",
-            );
-          } finally {
-            setEvaluatingJob(false);
           }
-        }
 
-        const targetJob = jobsWithTargets[0]?.job;
-        if (jobsWithTargets.length === 1 && !draftData) {
-          const draftCreated = await generateAutoApplyDraft(targetJob);
-          if (draftCreated) {
-            return;
+          if (autoTailorInBulk && activeResumeText && targetJob.description && !draftData?.resumeText) {
+            try {
+              pushLog(`Tailoring resume keywords to ${targetJob.company}...`, "info");
+              const tailoredResult = await tailorResumeViaEdge({
+                jobDescription: targetJob.description,
+                resumeText: activeResumeText,
+                jobTitle: targetJob.title,
+                company: targetJob.company,
+              });
+              if (tailoredResult?.tailored_resume) {
+                jobsWithTargets[0].tailoredResumeText = tailoredResult.tailored_resume;
+                jobsWithTargets[0].tailoredConfidence = tailoredResult.confidence_score;
+                jobsWithTargets[0].job.matchScore = tailoredResult.confidence_score;
+                jobsWithTargets[0].job.evaluation_summary = {
+                  ...(jobsWithTargets[0].job.evaluation_summary || {}),
+                  confidence_score: tailoredResult.confidence_score,
+                  canonical_decision: tailoredResult.canonical_decision || "strong_yes",
+                  matched_keywords: tailoredResult.matched_keywords,
+                };
+                pushLog(`Resume tailored successfully (${tailoredResult.confidence_score}% keyword match).`, "success");
+              }
+            } catch (tailorErr) {
+              console.warn("Auto-tailoring during single job apply threw", tailorErr);
+            }
           }
-          safeInfo(
-            "Draft Generation Failed",
-            "Skipping draft mode and falling back to base materials.",
-          );
+
+          if (singleJobCoverLetterMode === "auto" && targetJob.description && !draftData?.coverLetterText) {
+            try {
+              pushLog(`Generating tailored cover letter for ${targetJob.title}...`, "info");
+              const generatedCoverLetter = await generateCoverLetterViaEdge({
+                jobDescription: targetJob.description,
+                resumeText: activeResumeText || "",
+                includeCandidateMemory: false,
+                instructions:
+                  "Use only the candidate source material. Emphasize relevant skills for this specific role.",
+              });
+              if (generatedCoverLetter) {
+                (jobsWithTargets[0].job as any).cover_letter = generatedCoverLetter;
+                pushLog("Tailored cover letter generated.", "success");
+              }
+            } catch (clErr) {
+              console.warn("Cover letter generation for single job threw", clErr);
+            }
+          }
         }
 
         let jobsToAutoApply = jobsWithTargets;
@@ -4165,12 +4219,11 @@ export const JobPage = (): JSX.Element => {
                 rtrvr_prefer_extension:
                   profile?.rtrvr_prefer_extension !== false,
                 auto_submit: autoSubmitApplications,
-                submission_mode: trueAutonomyEnabled
+                submission_mode: (autoSubmitApplications
                   ? "autopilot"
-                  : autoSubmitApplications
-                    ? "autopilot"
-                    : "review",
+                  : "review") as "autopilot" | "review",
                 true_autonomy: trueAutonomyEnabled,
+                automation_mode: automationMode,
                 tailored_confidence: item.tailoredConfidence ?? null,
                 evaluation_confidence:
                   evaluation?.confidence_score ??
@@ -4433,7 +4486,7 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
     job.company,
     job.description,
     job.location,
-    ...(job.matchKeywords || []),
+    ...((job as any).matchKeywords || []),
     ...(job.evaluation_summary?.matched_keywords || []),
   ]
     .filter(Boolean)
@@ -6721,7 +6774,328 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
               </div>
 
               {autoApplyStep === 1 && (
-                <div className='space-y-6'>
+                jobToAutoApply ? (
+                  <div className='space-y-5'>
+                    {/* Target Job Header Card */}
+                    <div className='rounded-xl border border-brand/35 bg-brand/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
+                      <div className='space-y-1.5'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-xs font-semibold px-2 py-0.5 rounded-full bg-brand/15 text-brand border border-brand/20 uppercase tracking-wide'>
+                            Target Job
+                          </span>
+                          {jobToAutoApply.company && (
+                            <span className='text-xs font-medium text-foreground/70'>
+                              {jobToAutoApply.company}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className='text-lg font-semibold text-foreground'>
+                          {jobToAutoApply.title}
+                        </h4>
+                        <div className='flex flex-wrap items-center gap-3 text-xs text-foreground/60'>
+                          {jobToAutoApply.location && (
+                            <span className='flex items-center gap-1'>
+                              <MapPin className='w-3.5 h-3.5 text-brand' />
+                              {jobToAutoApply.location}
+                            </span>
+                          )}
+                          {formatSalaryRange(jobToAutoApply) && (
+                            <span className='flex items-center gap-1'>
+                              <DollarSign className='w-3.5 h-3.5 text-brand' />
+                              {formatSalaryRange(jobToAutoApply)}
+                            </span>
+                          )}
+                          {typeof jobToAutoApply.matchScore === "number" && (
+                            <span className='flex items-center gap-1 text-brand font-medium'>
+                              <Sparkles className='w-3.5 h-3.5' />
+                              {Math.round(jobToAutoApply.matchScore)}% match
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className='flex sm:flex-col sm:items-end gap-1.5 shrink-0'>
+                        <div className='text-[10px] uppercase tracking-wider text-foreground/40 font-medium'>
+                          Platform
+                        </div>
+                        <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-foreground/15 bg-foreground/[0.04] text-xs font-mono text-foreground/80'>
+                          <Globe className='w-3 h-3 text-brand' />
+                          {(() => {
+                            const target = getJobApplyTarget(jobToAutoApply);
+                            if (!target) return "Direct portal";
+                            try {
+                              return new URL(target).hostname.replace(/^www\./, "");
+                            } catch {
+                              return "Online application";
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resume Selector */}
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <label className='text-sm font-medium text-foreground/90 flex items-center gap-2'>
+                          <FileText className='w-4 h-4 text-brand' />
+                          <span>Candidate Resume</span>
+                        </label>
+                        <a
+                          href='/dashboard/resumes'
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='text-xs text-brand hover:underline inline-flex items-center gap-1'
+                        >
+                          Manage resumes ↗
+                        </a>
+                      </div>
+                      {resumesLoading ? (
+                        <div className='h-10 rounded-lg bg-muted animate-pulse' />
+                      ) : Array.isArray(resumes) && resumes.length > 0 ? (
+                        <select
+                          value={selectedResumeId || ""}
+                          onChange={(e) => setSelectedResumeId(e.target.value)}
+                          className='w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground focus:border-brand focus:outline-none'
+                        >
+                          {resumes.map((r: any) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name || "Untitled Resume"} ({(r.file_ext || "pdf").toUpperCase()} • Updated {new Date(r.updated_at).toLocaleDateString()})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className='text-xs text-foreground/60'>
+                          No resume found. <a href='/dashboard/resumes' className='text-brand underline'>Upload one</a> before auto applying.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Tailor Resume Toggle */}
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 flex items-center justify-between'>
+                      <div>
+                        <div className='flex items-center gap-2 text-sm font-medium text-foreground/90'>
+                          <Sparkles className='w-4 h-4 text-brand' />
+                          Tailor resume
+                        </div>
+                        <p className='mt-1 text-xs text-foreground/60 max-w-[85%]'>
+                          Auto-aligns keywords from the job description to your resume before submitting. Factual candidate details are strictly preserved.
+                        </p>
+                      </div>
+                      <button
+                        type='button'
+                        onClick={() => setAutoTailorInBulk(!autoTailorInBulk)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${autoTailorInBulk ? "bg-brand" : "bg-foreground/20"}`}
+                        role='switch'
+                        aria-checked={autoTailorInBulk}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${autoTailorInBulk ? "translate-x-4" : "translate-x-0"}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Cover Letter Option */}
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <div className='text-sm font-medium text-foreground/90 flex items-center gap-2'>
+                          <FileText className='w-4 h-4 text-brand' />
+                          <span>Cover letter</span>
+                        </div>
+                        <span className='text-[10px] font-semibold px-2 py-0.5 rounded-full border border-foreground/15 bg-foreground/[0.04] text-foreground/70'>
+                          {singleJobCoverLetterMode === "auto"
+                            ? "Auto-generated"
+                            : singleJobCoverLetterMode === "saved"
+                              ? "Saved letter"
+                              : "None"}
+                        </span>
+                      </div>
+                      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
+                        <button
+                          type='button'
+                          onClick={() => setSingleJobCoverLetterMode("auto")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            singleJobCoverLetterMode === "auto"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Generate automatically</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            AI drafts a tailored letter for this role.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => setSingleJobCoverLetterMode("saved")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            singleJobCoverLetterMode === "saved"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Use saved letter</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            Attach a letter from your library.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => setSingleJobCoverLetterMode("none")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            singleJobCoverLetterMode === "none"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>No cover letter</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            Skip cover letter attachment.
+                          </div>
+                        </button>
+                      </div>
+
+                      {singleJobCoverLetterMode === "saved" && Array.isArray(coverLetterLibrary) && coverLetterLibrary.length > 0 && (
+                        <div className='pt-2'>
+                          <select
+                            value={selectedCoverLetterId || ""}
+                            onChange={(e) => setSelectedCoverLetterId(e.target.value)}
+                            className='w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground focus:border-brand focus:outline-none'
+                          >
+                            {coverLetterLibrary.map((cl) => (
+                              <option key={cl.id} value={cl.id}>
+                                {cl.name || "Untitled Letter"}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Automation Mode */}
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <div className='text-sm font-medium text-foreground/90 flex items-center gap-2'>
+                          <Sparkles className='w-4 h-4 text-brand' />
+                          <span>Automation mode</span>
+                        </div>
+                        <span className='text-[10px] font-semibold px-2 py-0.5 rounded-full border border-brand/20 bg-brand/10 text-brand'>
+                          {automationMode === "autopilot_strict"
+                            ? "Autopilot — Strict"
+                            : automationMode === "autopilot"
+                              ? "Autopilot"
+                              : "Review before submit"}
+                        </span>
+                      </div>
+                      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
+                        <button
+                          type='button'
+                          onClick={() => handleAutomationModeChange("review")}
+                          className={cn(
+                            "p-3 rounded-lg border text-left transition-all",
+                            automationMode === "review"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Review before submit</div>
+                          <div className='text-[10px] mt-1 text-foreground/60 leading-tight'>
+                            Pre-fills all fields, but halts before final submission so you can review.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => handleAutomationModeChange("autopilot")}
+                          className={cn(
+                            "p-3 rounded-lg border text-left transition-all",
+                            automationMode === "autopilot"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Autopilot</div>
+                          <div className='text-[10px] mt-1 text-foreground/60 leading-tight'>
+                            Pre-populates and automatically final-submits with standard safety checks.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => handleAutomationModeChange("autopilot_strict")}
+                          className={cn(
+                            "p-3 rounded-lg border text-left transition-all",
+                            automationMode === "autopilot_strict"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Autopilot — Strict</div>
+                          <div className='text-[10px] mt-1 text-foreground/60 leading-tight'>
+                            Only submits on verified ATS platforms when confidence &ge; 90% and 0 hard blockers exist.
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Browser Preference */}
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <div className='text-sm font-medium text-foreground/90 flex items-center gap-2'>
+                          <Globe className='w-4 h-4 text-brand' />
+                          <span>Browser</span>
+                        </div>
+                      </div>
+                      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
+                        <button
+                          type='button'
+                          onClick={() => saveBrowserExecutionPreference("automatic")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            browserExecutionPreference === "automatic"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Automatic</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            Uses local Chrome if connected, otherwise cloud runner.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => saveBrowserExecutionPreference("my_chrome")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            browserExecutionPreference === "my_chrome"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>My Chrome</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            Runs in your local browser via extension.
+                          </div>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => saveBrowserExecutionPreference("jobraker_cloud")}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-left transition-all",
+                            browserExecutionPreference === "jobraker_cloud"
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-foreground/10 bg-foreground/[0.02] text-foreground/70 hover:border-foreground/20",
+                          )}
+                        >
+                          <div className='text-xs font-semibold'>Jobraker Cloud</div>
+                          <div className='text-[10px] mt-0.5 text-foreground/60 leading-tight'>
+                            Executes on isolated cloud runner.
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className='space-y-6'>
                   <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                     <p className='text-sm text-foreground/60'>
                       Select the resume we attach to each submission. Align the
@@ -6965,7 +7339,8 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                     </div>
                   </div>
                 </div>
-              )}
+              )
+            )}
 
               {autoApplyStep === 2 && (
                 <div className='grid gap-4'>
@@ -8139,7 +8514,7 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
       />
       <Modal
         open={Boolean(searchFeedbackModal?.open)}
-        onOpenChange={(open) => !open && setSearchFeedbackModal(null)}
+        onClose={() => setSearchFeedbackModal(null)}
         title={searchFeedbackModal?.title || "Search Notice"}
       >
         <div className="space-y-4 p-4">
