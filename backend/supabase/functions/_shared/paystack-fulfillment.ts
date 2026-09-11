@@ -100,6 +100,251 @@ async function hasConcurrencyProvision(
   return Boolean(data?.length);
 }
 
+async function hasPromotionQuotaProvision(
+  supabaseAdmin: any,
+  userId: string,
+  orderId: string,
+) {
+  const { data, error } = await supabaseAdmin
+    .from("user_feature_quotas")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("feature_key", "auto_apply")
+    .eq("source", "promotion")
+    .contains("metadata", { order_ids: [orderId] })
+    .limit(1);
+
+  if (error) {
+    console.error("Failed to check promotion quota idempotency:", error);
+    return false;
+  }
+
+  return Boolean(data?.length);
+}
+
+async function provisionPromotionBonusRuns(
+  supabaseAdmin: any,
+  userId: string,
+  bonusRuns: number,
+  orderId: string,
+  assignmentId: string,
+) {
+  const now = new Date();
+  const periodStart = now.toISOString();
+  const periodEnd = new Date(now.getTime() + 90 * 24 * 3600 * 1000).toISOString();
+
+  const { data: existingQuota, error: quotaLookupError } = await supabaseAdmin
+    .from("user_feature_quotas")
+    .select("id, included_quantity, metadata")
+    .eq("user_id", userId)
+    .eq("feature_key", "auto_apply")
+    .eq("source", "promotion")
+    .gte("period_end", periodStart)
+    .order("period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (quotaLookupError) {
+    console.error("Failed to look up promo quota:", quotaLookupError);
+  }
+
+  const existingMetadata =
+    existingQuota?.metadata && typeof existingQuota.metadata === "object"
+      ? (existingQuota.metadata as Record<string, unknown>)
+      : {};
+  const existingOrderIds = Array.isArray(existingMetadata.order_ids)
+    ? existingMetadata.order_ids.map((v: any) => String(v)).filter(Boolean)
+    : [];
+
+  if (existingOrderIds.includes(orderId)) {
+    return;
+  }
+
+  const nextOrderIds = [...existingOrderIds, orderId];
+  const quotaPayload = {
+    user_id: userId,
+    feature_key: "auto_apply",
+    source: "promotion",
+    period_start: periodStart,
+    period_end: periodEnd,
+    included_quantity:
+      Math.max(0, Math.floor(Number(existingQuota?.included_quantity || 0))) + bonusRuns,
+    used_quantity: 0,
+    updated_at: periodStart,
+    metadata: {
+      ...existingMetadata,
+      order_ids: nextOrderIds,
+      last_order_id: orderId,
+      promotion_assignment_id: assignmentId,
+    },
+  };
+
+  if (existingQuota?.id) {
+    await supabaseAdmin
+      .from("user_feature_quotas")
+      .update(quotaPayload)
+      .eq("id", existingQuota.id);
+  } else {
+    await supabaseAdmin.from("user_feature_quotas").insert(quotaPayload);
+  }
+}
+
+async function attributePromotionConversion(
+  supabaseAdmin: any,
+  order: OrderRow,
+) {
+  const metadata = (order.metadata || {}) as Record<string, unknown>;
+  const assignmentId = metadata.promotion_assignment_id;
+  if (!assignmentId || typeof assignmentId !== "string") return;
+
+  try {
+    // 1. Revalidate assignment and ownership
+    const { data: assignment, error: assignmentError } = await supabaseAdmin
+      .from("promotion_assignments")
+      .select("id, user_id, campaign_id, status, bonus_credits, bonus_auto_apply_runs, converted_order_id")
+      .eq("id", assignmentId)
+      .maybeSingle();
+
+    if (assignmentError || !assignment) {
+      console.warn(`[paystack-fulfillment] Promotion assignment ${assignmentId} not found`);
+      return;
+    }
+
+    // Security check: assignment must belong to the order user
+    if (assignment.user_id !== order.user_id) {
+      console.error(
+        `[paystack-fulfillment] Promotion assignment user mismatch: assignment=${assignment.user_id}, order=${order.user_id}`,
+      );
+      return;
+    }
+
+    // Check if already converted by this exact order (idempotency check)
+    const isAlreadyConvertedByThisOrder = assignment.converted_order_id === order.id;
+
+    if (assignment.status === "converted" && !isAlreadyConvertedByThisOrder) {
+      console.warn(
+        `[paystack-fulfillment] Promotion assignment ${assignmentId} already converted by another order (${assignment.converted_order_id})`,
+      );
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 2. Atomically convert assignment if not already converted by this order
+    if (!isAlreadyConvertedByThisOrder) {
+      const { data: updatedAssignment, error: updateError } = await supabaseAdmin
+        .from("promotion_assignments")
+        .update({
+          status: "converted",
+          converted_at: nowIso,
+          converted_order_id: order.id,
+          converted_amount: order.total_amount,
+          converted_currency: order.currency || "USD",
+          updated_at: nowIso,
+        })
+        .eq("id", assignmentId)
+        .eq("user_id", order.user_id)
+        .eq("status", "active")
+        .is("converted_order_id", null)
+        .select("id")
+        .maybeSingle();
+
+      if (updateError || !updatedAssignment) {
+        console.warn(
+          `[paystack-fulfillment] Failed to atomically transition assignment ${assignmentId} to converted:`,
+          updateError,
+        );
+        return;
+      }
+    }
+
+    // 3. Grant Promotional Bonus Credits (Idempotently via existing ledger)
+    const bonusCredits = Math.max(
+      0,
+      Number(metadata.promotion_bonus_credits ?? assignment.bonus_credits ?? 0),
+    );
+    if (bonusCredits > 0) {
+      const alreadyBonusCredited = await hasCreditTransaction(
+        supabaseAdmin,
+        order.user_id,
+        "promotion_bonus",
+        order.id,
+      );
+      if (!alreadyBonusCredited) {
+        const { error: promoCreditError } = await supabaseAdmin.rpc("add_credits", {
+          p_user_id: order.user_id,
+          p_amount: bonusCredits,
+          p_description: "Promotional bonus credits",
+          p_reference_type: "promotion_bonus",
+          p_reference_id: order.id,
+          p_metadata: {
+            order_id: order.id,
+            promotion_assignment_id: assignment.id,
+            promotion_campaign_id: assignment.campaign_id,
+          },
+        });
+        if (promoCreditError) {
+          console.error(
+            `[paystack-fulfillment] Failed to grant promotional bonus credits for order ${order.id}:`,
+            promoCreditError,
+          );
+        }
+      }
+    }
+
+    // 4. Grant Promotional Bonus Auto Apply Runs (Idempotently via user_feature_quotas)
+    const bonusRuns = Math.max(
+      0,
+      Number(metadata.promotion_bonus_auto_apply_runs ?? assignment.bonus_auto_apply_runs ?? 0),
+    );
+    if (bonusRuns > 0) {
+      const alreadyBonusRuns = await hasPromotionQuotaProvision(
+        supabaseAdmin,
+        order.user_id,
+        order.id,
+      );
+      if (!alreadyBonusRuns) {
+        await provisionPromotionBonusRuns(
+          supabaseAdmin,
+          order.user_id,
+          bonusRuns,
+          order.id,
+          assignment.id,
+        );
+      }
+    }
+
+    // 5. Insert 'converted' event (Idempotently)
+    const { data: existingEvent } = await supabaseAdmin
+      .from("promotion_events")
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .eq("event_type", "converted")
+      .contains("metadata", { order_id: order.id })
+      .limit(1);
+
+    if (!existingEvent?.length) {
+      await supabaseAdmin.from("promotion_events").insert({
+        assignment_id: assignmentId,
+        user_id: order.user_id,
+        campaign_id: metadata.promotion_campaign_id || assignment.campaign_id || null,
+        event_type: "converted",
+        placement: "pricing_page",
+        metadata: {
+          order_id: order.id,
+          total_amount: order.total_amount,
+          currency: order.currency || "USD",
+          discount_pct: metadata.promotion_discount_pct || 0,
+          bonus_credits: bonusCredits,
+          bonus_auto_apply_runs: bonusRuns,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[paystack-fulfillment] Failed in attributePromotionConversion:", err);
+  }
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -455,6 +700,8 @@ export async function fulfillVerifiedPaystackPayment({
       };
     }
 
+    await attributePromotionConversion(supabaseAdmin, order);
+
     return {
       ok: true,
       status: "fulfilled",
@@ -694,6 +941,8 @@ export async function fulfillVerifiedPaystackPayment({
         };
       }
     }
+
+    await attributePromotionConversion(supabaseAdmin, order);
 
     return { ok: true, status: "fulfilled", orderId: order.id };
   }

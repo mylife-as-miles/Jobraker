@@ -67,6 +67,7 @@ import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidge
 import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useProductTour } from "@/providers/TourProvider";
+import { PersonalizedPromotionBanner } from "@/components/promotions/PersonalizedPromotionBanner";
 
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
 
@@ -998,6 +999,11 @@ export const Dashboard = (): JSX.Element => {
               : ""
           }`}
         >
+          {/* Personalized Promotion Banner */}
+          {!chatFocusMode && currentPage !== "billing" && (
+            <PersonalizedPromotionBanner placement="top_banner" />
+          )}
+
           {/* Header - Responsive */}
           {!chatFocusMode && (
           <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>

@@ -57,6 +57,8 @@ import {
   ensureLowCreditRescueExpiry,
   isLowCreditRescueCode,
 } from "@/lib/lowCreditRescuePromo";
+import { PersonalizedPromotionBanner } from "@/components/promotions/PersonalizedPromotionBanner";
+import { usePersonalizedPromotion } from "@/hooks/usePersonalizedPromotion";
 
 interface SubscriptionPlan {
   id: string;
@@ -519,6 +521,20 @@ export const BillingPage = () => {
   const supabase = useMemo(() => createClient(), []);
   const { notify, error: toastError } = useToast();
   const [promoApplied, setPromoApplied] = useState(false);
+
+  const { decision: promoDecision } = usePersonalizedPromotion({
+    placement: "pricing_page",
+  });
+
+  const promoAssignmentId = useMemo(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const fromUrl = searchParams.get("promoAssignment");
+      if (fromUrl) return fromUrl;
+    }
+    return promoDecision?.assignmentId || null;
+  }, [promoDecision?.assignmentId]);
+
   const [expandedRuns, setExpandedRuns] = useState<Record<string, boolean>>({});
 
   const toggleRunExpansion = (runId: string) => {
@@ -1004,7 +1020,11 @@ export const BillingPage = () => {
       let payload: Record<string, unknown>;
       let analyticsProperties: Record<string, unknown>;
       if (type === "credit_pack" || type === "concurrency_pack") {
-        payload = { purchaseType: type, packSku: item.sku };
+        payload = {
+          purchaseType: type,
+          packSku: item.sku,
+          ...(type === "credit_pack" && promoAssignmentId ? { promotionAssignmentId: promoAssignmentId } : {}),
+        };
         analyticsProperties = {
           purchase_type: type,
           pack_sku: item.sku,
@@ -1012,6 +1032,7 @@ export const BillingPage = () => {
           ...(type === "concurrency_pack"
             ? { parallel_slots: item.parallel_slots }
             : {}),
+          ...(type === "credit_pack" && promoAssignmentId ? { promotion_assignment_id: promoAssignmentId } : {}),
         };
       } else {
         const planId = await resolveSubscriptionPlanUuidForCheckout(supabase, {
@@ -1027,15 +1048,17 @@ export const BillingPage = () => {
           });
           return;
         }
+
         payload = {
-          purchaseType: type,
+          purchaseType: "subscription",
           planId,
-          billingCycle: item.billingCycle as BillingInterval,
+          billingCycle: item.billingCycle || billingInterval,
           ...(item.name === "Ultimate" &&
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
             : {}),
           ...(promoApplied ? { promoCode: LOW_CREDIT_RESCUE_CODE } : {}),
+          ...(promoAssignmentId ? { promotionAssignmentId: promoAssignmentId } : {}),
         };
         analyticsProperties = {
           purchase_type: type,
@@ -1047,6 +1070,7 @@ export const BillingPage = () => {
             ? { ultimate_credits_per_month: item.ultimateCreditsPerMonth }
             : {}),
           ...(promoApplied ? { promo_code: LOW_CREDIT_RESCUE_CODE } : {}),
+          ...(promoAssignmentId ? { promotion_assignment_id: promoAssignmentId } : {}),
         };
       }
 
@@ -1444,6 +1468,11 @@ export const BillingPage = () => {
 
       {/* Main Content Area */}
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+        <PersonalizedPromotionBanner
+          placement="pricing_page"
+          className="mb-8 rounded-2xl border border-brand/40 shadow-sm"
+        />
+
         {promoApplied && (
           <div className='mb-8'>
             <div className='relative overflow-hidden rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(47,217,104,0.05)]'>

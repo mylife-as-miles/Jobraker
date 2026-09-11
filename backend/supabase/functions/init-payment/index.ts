@@ -18,6 +18,7 @@ type PaymentInitRequest = {
   /** Ultimate only: 3500–10500, step 500 — scales price and credits vs catalog base. */
   ultimateCreditsPerMonth?: number;
   promoCode?: string;
+  promotionAssignmentId?: string;
 };
 
 type SubscriptionPlanRow = {
@@ -203,6 +204,107 @@ serve(async (req) => {
     let authoritativeMetadata: Record<string, unknown> = {};
     const promoCode = normalizeLowCreditRescueCode(body.promoCode);
 
+    let promotionAssignment: {
+      id: string;
+      user_id: string;
+      campaign_id: string | null;
+      incentive_type: string;
+      discount_percent: number;
+      bonus_credits: number;
+      bonus_auto_apply_runs: number;
+      target_plan: string | null;
+      expires_at: string | null;
+      status: string;
+    } | null = null;
+    let promotionCampaign: {
+      id: string;
+      status: string;
+      starts_at: string;
+      ends_at: string | null;
+      min_discount: number;
+      max_discount: number;
+      eligible_plans?: string[] | null;
+      target_plans?: string[] | null;
+    } | null = null;
+
+    if (typeof body.promotionAssignmentId === "string" && body.promotionAssignmentId.trim()) {
+      const { data: assignment, error: promoError } = await supabaseClient
+        .from("promotion_assignments")
+        .select("id, user_id, campaign_id, incentive_type, discount_percent, bonus_credits, bonus_auto_apply_runs, target_plan, expires_at, status")
+        .eq("id", body.promotionAssignmentId.trim())
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (promoError || !assignment) {
+        return new Response(
+          JSON.stringify({ error: "Invalid promotion assignment" }),
+          { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
+
+      if (assignment.status !== "active") {
+        return new Response(
+          JSON.stringify({ error: "Promotion assignment is no longer active" }),
+          { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
+
+      const nowMs = Date.now();
+      if (assignment.expires_at && new Date(assignment.expires_at).getTime() <= nowMs) {
+        return new Response(
+          JSON.stringify({ error: "Promotion offer has expired" }),
+          { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
+
+      if (assignment.campaign_id) {
+        const { data: campaign, error: campError } = await supabaseClient
+          .from("promotion_campaigns")
+          .select("id, status, starts_at, ends_at, min_discount, max_discount, eligible_plans, target_plans")
+          .eq("id", assignment.campaign_id)
+          .maybeSingle();
+
+        if (campError || !campaign) {
+          return new Response(
+            JSON.stringify({ error: "Associated promotion campaign not found" }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (campaign.status !== "active") {
+          return new Response(
+            JSON.stringify({ error: "Promotion campaign is not active" }),
+            { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (campaign.starts_at && new Date(campaign.starts_at).getTime() > nowMs) {
+          return new Response(
+            JSON.stringify({ error: "Promotion campaign has not started" }),
+            { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (campaign.ends_at && new Date(campaign.ends_at).getTime() <= nowMs) {
+          return new Response(
+            JSON.stringify({ error: "Promotion campaign has ended" }),
+            { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (assignment.discount_percent > campaign.max_discount) {
+          return new Response(
+            JSON.stringify({ error: "Promotion discount exceeds campaign limit" }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        promotionCampaign = campaign;
+      }
+
+      promotionAssignment = assignment;
+    }
+
     if (purchaseType === "subscription") {
       if (!body.planId) {
         return new Response(JSON.stringify({ error: "Missing plan identifier" }), {
@@ -303,7 +405,65 @@ serve(async (req) => {
           );
         }
 
-        priceUsd = Math.round(priceUsd * LOW_CREDIT_RESCUE_MULTIPLIER * 100) / 100;
+        const basePriceMinor = Math.round(priceUsd * 100);
+        const discountMinor = Math.round((basePriceMinor * LOW_CREDIT_RESCUE_DISCOUNT_PCT) / 100);
+        const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
+        priceUsd = finalPriceMinor / 100;
+      }
+
+      if (promotionAssignment) {
+        if (
+          promotionAssignment.target_plan &&
+          plan.name.toLowerCase() !== promotionAssignment.target_plan.toLowerCase()
+        ) {
+          return new Response(
+            JSON.stringify({
+              error: `Promotion offer is valid only for the ${promotionAssignment.target_plan} plan.`,
+            }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (
+          promotionCampaign &&
+          Array.isArray(promotionCampaign.target_plans) &&
+          promotionCampaign.target_plans.length > 0 &&
+          !promotionCampaign.target_plans.some((p: string) => p.toLowerCase() === plan.name.toLowerCase())
+        ) {
+          return new Response(
+            JSON.stringify({
+              error: `Promotion campaign is not valid for the ${plan.name} plan.`,
+            }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        if (
+          promotionAssignment.incentive_type === "percentage_discount" &&
+          promotionAssignment.discount_percent > 0
+        ) {
+          const maxAllowed = promotionCampaign?.max_discount ?? 40;
+          const effectiveDiscountPct = Math.min(maxAllowed, Math.max(0, promotionAssignment.discount_percent));
+          const basePriceMinor = Math.round(priceUsd * 100);
+          const discountMinor = Math.round((basePriceMinor * effectiveDiscountPct) / 100);
+          const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
+          priceUsd = finalPriceMinor / 100;
+        }
+
+        // Track checkout_started event in promotion_events (Server-authoritative)
+        await supabaseClient.from("promotion_events").insert({
+          assignment_id: promotionAssignment.id,
+          user_id: user.id,
+          campaign_id: promotionAssignment.campaign_id,
+          event_type: "checkout_started",
+          placement: "pricing_page",
+          metadata: {
+            plan_id: plan.id,
+            plan_name: plan.name,
+            billing_cycle: paymentCycle,
+            price_usd: priceUsd,
+          },
+        });
       }
 
       authoritativeMetadata = {
@@ -313,13 +473,23 @@ serve(async (req) => {
         subscription_plan_id: plan.id,
         plan_name: plan.name,
         billing_cycle: paymentCycle,
-        credits_per_month: totalCreditsPaidFor,
+        credits_per_month: resolvedCredits,
         auto_apply_monthly_limit: resolvedAutoApply,
         currency: plan.currency || "USD",
         ...(promoCode === LOW_CREDIT_RESCUE_CODE
           ? {
               promo_code: LOW_CREDIT_RESCUE_CODE,
               discount_pct: LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+            }
+          : {}),
+        ...(promotionAssignment
+          ? {
+              promotion_assignment_id: promotionAssignment.id,
+              promotion_campaign_id: promotionAssignment.campaign_id,
+              promotion_discount_pct: promotionAssignment.discount_percent,
+              promotion_bonus_credits: promotionAssignment.bonus_credits,
+              promotion_bonus_auto_apply_runs: promotionAssignment.bonus_auto_apply_runs,
+              promotion_incentive_type: promotionAssignment.incentive_type,
             }
           : {}),
       };
@@ -351,6 +521,35 @@ serve(async (req) => {
       paymentCycle = "one_time";
       totalCreditsPaidFor =
         Number(pack.credits || 0) + Number(pack.bonus_credits || 0);
+
+      if (promotionAssignment) {
+        if (
+          promotionAssignment.incentive_type === "percentage_discount" &&
+          promotionAssignment.discount_percent > 0
+        ) {
+          const maxAllowed = promotionCampaign?.max_discount ?? 40;
+          const effectiveDiscountPct = Math.min(maxAllowed, Math.max(0, promotionAssignment.discount_percent));
+          const basePriceMinor = Math.round(priceUsd * 100);
+          const discountMinor = Math.round((basePriceMinor * effectiveDiscountPct) / 100);
+          const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
+          priceUsd = finalPriceMinor / 100;
+        }
+
+        // Track checkout_started event
+        await supabaseClient.from("promotion_events").insert({
+          assignment_id: promotionAssignment.id,
+          user_id: user.id,
+          campaign_id: promotionAssignment.campaign_id,
+          event_type: "checkout_started",
+          placement: "pricing_page",
+          metadata: {
+            pack_sku: pack.sku,
+            pack_name: pack.name,
+            price_usd: priceUsd,
+          },
+        });
+      }
+
       authoritativeMetadata = {
         purchase_type: "credit_pack",
         sku: pack.sku,
@@ -359,6 +558,15 @@ serve(async (req) => {
         bonus_credits: Number(pack.bonus_credits || 0),
         description: pack.description,
         currency: pack.currency || "USD",
+        ...(promotionAssignment
+          ? {
+              promotion_assignment_id: promotionAssignment.id,
+              promotion_campaign_id: promotionAssignment.campaign_id,
+              promotion_discount_pct: promotionAssignment.discount_percent,
+              promotion_bonus_credits: promotionAssignment.bonus_credits,
+              promotion_incentive_type: promotionAssignment.incentive_type,
+            }
+          : {}),
       };
     } else if (purchaseType === "concurrency_pack") {
       if (!body.packSku) {
