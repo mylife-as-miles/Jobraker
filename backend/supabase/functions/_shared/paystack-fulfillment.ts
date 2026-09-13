@@ -198,10 +198,10 @@ async function attributePromotionConversion(
   if (!assignmentId || typeof assignmentId !== "string") return;
 
   try {
-    // 1. Revalidate assignment and ownership
+    // 1. Revalidate assignment, ownership, and order binding
     const { data: assignment, error: assignmentError } = await supabaseAdmin
       .from("promotion_assignments")
-      .select("id, user_id, campaign_id, status, bonus_credits, bonus_auto_apply_runs, converted_order_id")
+      .select("id, user_id, campaign_id, status, bonus_credits, bonus_auto_apply_runs, bound_order_id, converted_order_id")
       .eq("id", assignmentId)
       .maybeSingle();
 
@@ -221,17 +221,103 @@ async function attributePromotionConversion(
     // Check if already converted by this exact order (idempotency check)
     const isAlreadyConvertedByThisOrder = assignment.converted_order_id === order.id;
 
+    // Conflicting order checks:
+    // If converted by another order, refuse promotion benefits and log security warning
     if (assignment.status === "converted" && !isAlreadyConvertedByThisOrder) {
       console.warn(
-        `[paystack-fulfillment] Promotion assignment ${assignmentId} already converted by another order (${assignment.converted_order_id})`,
+        `[paystack-fulfillment] SECURITY WARNING: Conflicting order payment. Promotion assignment ${assignmentId} was already converted by order ${assignment.converted_order_id}, but payment succeeded for order ${order.id}. Refusing promotional incentive and conversion attribution.`,
+      );
+      return;
+    }
+
+    // If bound to a different order, refuse promotion benefits and log security warning
+    if (assignment.bound_order_id && assignment.bound_order_id !== order.id) {
+      console.warn(
+        `[paystack-fulfillment] SECURITY WARNING: Conflicting order payment. Promotion assignment ${assignmentId} is bound to order ${assignment.bound_order_id}, but payment succeeded for order ${order.id}. Refusing promotional incentive and conversion attribution.`,
       );
       return;
     }
 
     const nowIso = new Date().toISOString();
 
-    // 2. Atomically convert assignment if not already converted by this order
+    // 2. Transactional Entitlement Fulfillment (Idempotent, crash-safe atomic RPCs)
+    // STEP A: Fulfill Promotional Bonus Credits
+    const bonusCredits = Math.max(
+      0,
+      Number(metadata.promotion_bonus_credits ?? assignment.bonus_credits ?? 0),
+    );
+    if (bonusCredits > 0) {
+      const creditIdempotencyKey = `promotion:${assignment.id}:${order.id}:bonus_credits`;
+      const { data: creditRes, error: creditErr } = await supabaseAdmin.rpc(
+        "fulfill_promotion_bonus_credits",
+        {
+          p_idempotency_key: creditIdempotencyKey,
+          p_assignment_id: assignment.id,
+          p_order_id: order.id,
+          p_user_id: order.user_id,
+          p_bonus_credits: bonusCredits,
+          p_metadata: {
+            order_id: order.id,
+            promotion_assignment_id: assignment.id,
+            promotion_campaign_id: assignment.campaign_id,
+          },
+        },
+      );
+
+      if (creditErr || !creditRes?.success) {
+        console.error(
+          `[paystack-fulfillment] Failed to fulfill promotion bonus credits for order ${order.id}:`,
+          creditErr || creditRes,
+        );
+        // Do NOT mark assignment converted if entitlement failed; allow retry!
+        return;
+      }
+    }
+
+    // STEP B: Fulfill Promotional Bonus Auto Apply Runs
+    const bonusRuns = Math.max(
+      0,
+      Number(metadata.promotion_bonus_auto_apply_runs ?? assignment.bonus_auto_apply_runs ?? 0),
+    );
+    if (bonusRuns > 0) {
+      const runsIdempotencyKey = `promotion:${assignment.id}:${order.id}:auto_apply_runs`;
+      const { data: runsRes, error: runsErr } = await supabaseAdmin.rpc(
+        "fulfill_promotion_bonus_runs",
+        {
+          p_idempotency_key: runsIdempotencyKey,
+          p_assignment_id: assignment.id,
+          p_order_id: order.id,
+          p_user_id: order.user_id,
+          p_bonus_runs: bonusRuns,
+          p_metadata: {
+            order_id: order.id,
+            promotion_assignment_id: assignment.id,
+          },
+        },
+      );
+
+      if (runsErr || !runsRes?.success) {
+        console.error(
+          `[paystack-fulfillment] Failed to fulfill promotion bonus runs for order ${order.id}:`,
+          runsErr || runsRes,
+        );
+        // Do NOT mark assignment converted if entitlement failed; allow retry!
+        return;
+      }
+    }
+
+    // 3. Mark Assignment & Redemption as Converted (ONLY after entitlements succeeded)
     if (!isAlreadyConvertedByThisOrder) {
+      await supabaseAdmin
+        .from("promotion_redemptions")
+        .update({
+          status: "converted",
+          converted_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("assignment_id", assignmentId)
+        .eq("order_id", order.id);
+
       const { data: updatedAssignment, error: updateError } = await supabaseAdmin
         .from("promotion_assignments")
         .update({
@@ -244,8 +330,7 @@ async function attributePromotionConversion(
         })
         .eq("id", assignmentId)
         .eq("user_id", order.user_id)
-        .eq("status", "active")
-        .is("converted_order_id", null)
+        .in("status", ["active", "reserved"])
         .select("id")
         .maybeSingle();
 
@@ -254,92 +339,27 @@ async function attributePromotionConversion(
           `[paystack-fulfillment] Failed to atomically transition assignment ${assignmentId} to converted:`,
           updateError,
         );
-        return;
       }
     }
 
-    // 3. Grant Promotional Bonus Credits (Idempotently via existing ledger)
-    const bonusCredits = Math.max(
-      0,
-      Number(metadata.promotion_bonus_credits ?? assignment.bonus_credits ?? 0),
-    );
-    if (bonusCredits > 0) {
-      const alreadyBonusCredited = await hasCreditTransaction(
-        supabaseAdmin,
-        order.user_id,
-        "promotion_bonus",
-        order.id,
-      );
-      if (!alreadyBonusCredited) {
-        const { error: promoCreditError } = await supabaseAdmin.rpc("add_credits", {
-          p_user_id: order.user_id,
-          p_amount: bonusCredits,
-          p_description: "Promotional bonus credits",
-          p_reference_type: "promotion_bonus",
-          p_reference_id: order.id,
-          p_metadata: {
-            order_id: order.id,
-            promotion_assignment_id: assignment.id,
-            promotion_campaign_id: assignment.campaign_id,
-          },
-        });
-        if (promoCreditError) {
-          console.error(
-            `[paystack-fulfillment] Failed to grant promotional bonus credits for order ${order.id}:`,
-            promoCreditError,
-          );
-        }
-      }
-    }
-
-    // 4. Grant Promotional Bonus Auto Apply Runs (Idempotently via user_feature_quotas)
-    const bonusRuns = Math.max(
-      0,
-      Number(metadata.promotion_bonus_auto_apply_runs ?? assignment.bonus_auto_apply_runs ?? 0),
-    );
-    if (bonusRuns > 0) {
-      const alreadyBonusRuns = await hasPromotionQuotaProvision(
-        supabaseAdmin,
-        order.user_id,
-        order.id,
-      );
-      if (!alreadyBonusRuns) {
-        await provisionPromotionBonusRuns(
-          supabaseAdmin,
-          order.user_id,
-          bonusRuns,
-          order.id,
-          assignment.id,
-        );
-      }
-    }
-
-    // 5. Insert 'converted' event (Idempotently)
-    const { data: existingEvent } = await supabaseAdmin
-      .from("promotion_events")
-      .select("id")
-      .eq("assignment_id", assignmentId)
-      .eq("event_type", "converted")
-      .contains("metadata", { order_id: order.id })
-      .limit(1);
-
-    if (!existingEvent?.length) {
-      await supabaseAdmin.from("promotion_events").insert({
-        assignment_id: assignmentId,
-        user_id: order.user_id,
-        campaign_id: metadata.promotion_campaign_id || assignment.campaign_id || null,
-        event_type: "converted",
-        placement: "pricing_page",
-        metadata: {
-          order_id: order.id,
-          total_amount: order.total_amount,
-          currency: order.currency || "USD",
-          discount_pct: metadata.promotion_discount_pct || 0,
-          bonus_credits: bonusCredits,
-          bonus_auto_apply_runs: bonusRuns,
-        },
-      });
-    }
+    // 4. Record Conversion Event (Idempotent via database RPC)
+    const eventIdempotencyKey = `promotion:${assignment.id}:${order.id}:converted_event`;
+    await supabaseAdmin.rpc("record_promotion_converted_event", {
+      p_idempotency_key: eventIdempotencyKey,
+      p_assignment_id: assignment.id,
+      p_order_id: order.id,
+      p_user_id: order.user_id,
+      p_campaign_id: metadata.promotion_campaign_id || assignment.campaign_id || null,
+      p_placement: "pricing_page",
+      p_metadata: {
+        order_id: order.id,
+        total_amount: order.total_amount,
+        currency: order.currency || "USD",
+        discount_pct: metadata.promotion_discount_pct || 0,
+        bonus_credits: bonusCredits,
+        bonus_auto_apply_runs: bonusRuns,
+      },
+    });
   } catch (err) {
     console.error("[paystack-fulfillment] Failed in attributePromotionConversion:", err);
   }

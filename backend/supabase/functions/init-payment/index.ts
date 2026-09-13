@@ -6,6 +6,10 @@ import {
   SHARED_SUBSCRIPTION_PLANS,
   findSharedConcurrencyPackBySku,
 } from "../../shared/billing-catalog.ts";
+import {
+  calculatePromotionPrice,
+  matchesTargetProduct,
+} from "../../shared/promotions.ts";
 
 console.log("Hello from init-payment!");
 
@@ -204,6 +208,8 @@ serve(async (req) => {
     let authoritativeMetadata: Record<string, unknown> = {};
     const promoCode = normalizeLowCreditRescueCode(body.promoCode);
 
+    const pendingOrderId = crypto.randomUUID();
+
     let promotionAssignment: {
       id: string;
       user_id: string;
@@ -213,6 +219,8 @@ serve(async (req) => {
       bonus_credits: number;
       bonus_auto_apply_runs: number;
       target_plan: string | null;
+      target_product_id?: string | null;
+      bound_order_id?: string | null;
       expires_at: string | null;
       status: string;
     } | null = null;
@@ -225,12 +233,15 @@ serve(async (req) => {
       max_discount: number;
       eligible_plans?: string[] | null;
       target_plans?: string[] | null;
+      config?: {
+        allowed_billing_intervals?: ("monthly" | "quarterly" | "yearly")[];
+      } | null;
     } | null = null;
 
     if (typeof body.promotionAssignmentId === "string" && body.promotionAssignmentId.trim()) {
       const { data: assignment, error: promoError } = await supabaseClient
         .from("promotion_assignments")
-        .select("id, user_id, campaign_id, incentive_type, discount_percent, bonus_credits, bonus_auto_apply_runs, target_plan, expires_at, status")
+        .select("id, user_id, campaign_id, incentive_type, discount_percent, bonus_credits, bonus_auto_apply_runs, target_plan, target_product_id, bound_order_id, expires_at, status")
         .eq("id", body.promotionAssignmentId.trim())
         .eq("user_id", user.id)
         .maybeSingle();
@@ -260,7 +271,7 @@ serve(async (req) => {
       if (assignment.campaign_id) {
         const { data: campaign, error: campError } = await supabaseClient
           .from("promotion_campaigns")
-          .select("id, status, starts_at, ends_at, min_discount, max_discount, eligible_plans, target_plans")
+          .select("id, status, starts_at, ends_at, min_discount, max_discount, eligible_plans, target_plans, config")
           .eq("id", assignment.campaign_id)
           .maybeSingle();
 
@@ -393,6 +404,12 @@ serve(async (req) => {
           user.id,
         );
         if (alreadyRedeemed) {
+          if (promotionAssignment) {
+            await supabaseClient.rpc("release_promotion_reservation", {
+              p_assignment_id: promotionAssignment.id,
+              p_order_id: pendingOrderId,
+            });
+          }
           return new Response(
             JSON.stringify({
               error:
@@ -406,20 +423,43 @@ serve(async (req) => {
         }
 
         const basePriceMinor = Math.round(priceUsd * 100);
-        const discountMinor = Math.round((basePriceMinor * LOW_CREDIT_RESCUE_DISCOUNT_PCT) / 100);
-        const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
-        priceUsd = finalPriceMinor / 100;
+        const rescueCalc = calculatePromotionPrice({
+          basePriceMinor,
+          discountPercent: LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+        });
+        priceUsd = rescueCalc.finalPriceMinor / 100;
       }
 
       if (promotionAssignment) {
-        if (
-          promotionAssignment.target_plan &&
-          plan.name.toLowerCase() !== promotionAssignment.target_plan.toLowerCase()
-        ) {
+        // Prevent discount stacking: rescue code + promotion assignment cannot both be applied
+        if (promoCode) {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
           return new Response(
             JSON.stringify({
-              error: `Promotion offer is valid only for the ${promotionAssignment.target_plan} plan.`,
+              error: "Promotional discounts cannot be combined with rescue codes or other promo codes.",
             }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        const matchResult = matchesTargetProduct({
+          targetPlanOrProduct: promotionAssignment.target_product_id || promotionAssignment.target_plan,
+          allowedBillingIntervals: promotionCampaign?.config?.allowed_billing_intervals || ["monthly"],
+          productType: "subscription",
+          planOrSku: plan.name,
+          billingInterval: paymentCycle,
+        });
+
+        if (!matchResult.match) {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
+          return new Response(
+            JSON.stringify({ error: matchResult.reason || "Promotion is not valid for this plan" }),
             { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
           );
         }
@@ -430,6 +470,10 @@ serve(async (req) => {
           promotionCampaign.target_plans.length > 0 &&
           !promotionCampaign.target_plans.some((p: string) => p.toLowerCase() === plan.name.toLowerCase())
         ) {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
           return new Response(
             JSON.stringify({
               error: `Promotion campaign is not valid for the ${plan.name} plan.`,
@@ -445,9 +489,11 @@ serve(async (req) => {
           const maxAllowed = promotionCampaign?.max_discount ?? 40;
           const effectiveDiscountPct = Math.min(maxAllowed, Math.max(0, promotionAssignment.discount_percent));
           const basePriceMinor = Math.round(priceUsd * 100);
-          const discountMinor = Math.round((basePriceMinor * effectiveDiscountPct) / 100);
-          const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
-          priceUsd = finalPriceMinor / 100;
+          const promoCalc = calculatePromotionPrice({
+            basePriceMinor,
+            discountPercent: effectiveDiscountPct,
+          });
+          priceUsd = promoCalc.finalPriceMinor / 100;
         }
 
         // Track checkout_started event in promotion_events (Server-authoritative)
@@ -458,6 +504,7 @@ serve(async (req) => {
           event_type: "checkout_started",
           placement: "pricing_page",
           metadata: {
+            order_id: pendingOrderId,
             plan_id: plan.id,
             plan_name: plan.name,
             billing_cycle: paymentCycle,
@@ -467,6 +514,7 @@ serve(async (req) => {
       }
 
       authoritativeMetadata = {
+        order_id: pendingOrderId,
         purchase_type: "subscription",
         sku: `plan:${plan.id}`,
         plan_id: plan.id,
@@ -523,6 +571,36 @@ serve(async (req) => {
         Number(pack.credits || 0) + Number(pack.bonus_credits || 0);
 
       if (promotionAssignment) {
+        if (promoCode) {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
+          return new Response(
+            JSON.stringify({
+              error: "Promotional discounts cannot be combined with rescue codes or other promo codes.",
+            }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
+        const matchResult = matchesTargetProduct({
+          targetPlanOrProduct: promotionAssignment.target_product_id || promotionAssignment.target_plan,
+          productType: "credit_pack",
+          planOrSku: pack.sku,
+        });
+
+        if (!matchResult.match) {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
+          return new Response(
+            JSON.stringify({ error: matchResult.reason || "Promotion is not valid for this credit pack" }),
+            { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+          );
+        }
+
         if (
           promotionAssignment.incentive_type === "percentage_discount" &&
           promotionAssignment.discount_percent > 0
@@ -530,9 +608,11 @@ serve(async (req) => {
           const maxAllowed = promotionCampaign?.max_discount ?? 40;
           const effectiveDiscountPct = Math.min(maxAllowed, Math.max(0, promotionAssignment.discount_percent));
           const basePriceMinor = Math.round(priceUsd * 100);
-          const discountMinor = Math.round((basePriceMinor * effectiveDiscountPct) / 100);
-          const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
-          priceUsd = finalPriceMinor / 100;
+          const promoCalc = calculatePromotionPrice({
+            basePriceMinor,
+            discountPercent: effectiveDiscountPct,
+          });
+          priceUsd = promoCalc.finalPriceMinor / 100;
         }
 
         // Track checkout_started event
@@ -543,6 +623,7 @@ serve(async (req) => {
           event_type: "checkout_started",
           placement: "pricing_page",
           metadata: {
+            order_id: pendingOrderId,
             pack_sku: pack.sku,
             pack_name: pack.name,
             price_usd: priceUsd,
@@ -551,6 +632,7 @@ serve(async (req) => {
       }
 
       authoritativeMetadata = {
+        order_id: pendingOrderId,
         purchase_type: "credit_pack",
         sku: pack.sku,
         pack_name: pack.name,
@@ -569,6 +651,16 @@ serve(async (req) => {
           : {}),
       };
     } else if (purchaseType === "concurrency_pack") {
+      if (promotionAssignment) {
+        await supabaseClient.rpc("release_promotion_reservation", {
+          p_assignment_id: promotionAssignment.id,
+          p_order_id: pendingOrderId,
+        });
+        return new Response(
+          JSON.stringify({ error: "Promotions are not supported for concurrency packs" }),
+          { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
       if (!body.packSku) {
         return new Response(
           JSON.stringify({ error: "Missing concurrency pack identifier" }),
@@ -673,6 +765,68 @@ serve(async (req) => {
       price_ngn: amountInNgn,
     };
 
+    // 1. Pre-insert order row into public.orders in 'pending' state
+    // Required for strongly-typed FK integrity on promotion_redemptions.order_id
+    const { error: preOrderError } = await supabaseClient.from("orders").insert({
+      id: pendingOrderId,
+      user_id: user.id,
+      plan_type: purchaseType,
+      total_amount: paystackAmount,
+      currency: "NGN",
+      payment_cycle: paymentCycle,
+      total_credits_paid_for: totalCreditsPaidFor,
+      tx_id: null,
+      is_success: false,
+      metadata: { ...orderMetadata, status: "pending" },
+    });
+
+    if (preOrderError) {
+      console.error("Order pre-creation error:", preOrderError);
+      throw preOrderError;
+    }
+
+    // 2. Authoritatively reserve promotion assignment if requested
+    if (promotionAssignment) {
+      const { data: reserveRes, error: reserveErr } = await supabaseClient.rpc(
+        "reserve_promotion_assignment",
+        {
+          p_assignment_id: promotionAssignment.id,
+          p_user_id: user.id,
+          p_order_id: pendingOrderId,
+          p_ttl_minutes: 30,
+        },
+      );
+
+      if (reserveErr || !reserveRes?.success) {
+        const errCode = reserveRes?.error || reserveErr?.message || "reservation_failed";
+        // Mark order failed in public.orders
+        await supabaseClient
+          .from("orders")
+          .update({
+            metadata: { ...orderMetadata, status: "failed", failure_reason: errCode },
+          })
+          .eq("id", pendingOrderId);
+
+        let userMessage = "Could not reserve promotional offer for checkout";
+        if (errCode === "already_reserved_by_other_order") {
+          userMessage =
+            "This promotional offer is currently reserved by another pending checkout on your account. Please complete that payment or wait for the session to expire.";
+        } else if (errCode === "already_converted") {
+          userMessage = "This promotional offer has already been redeemed.";
+        } else if (errCode === "assignment_expired") {
+          userMessage = "Promotion offer has expired.";
+        } else if (errCode === "concurrency_conflict") {
+          userMessage = "Checkout conflict: this promotional offer is already in use.";
+        }
+
+        return new Response(
+          JSON.stringify({ error: userMessage, code: errCode }),
+          { status: 409, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // 3. Initialize Paystack transaction
     const paystackRes = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -688,6 +842,7 @@ serve(async (req) => {
           metadata: {
             ...orderMetadata,
             plan_type: purchaseType,
+            order_id: pendingOrderId,
           },
         }),
       },
@@ -697,24 +852,51 @@ serve(async (req) => {
 
     if (!paystackData.status) {
       console.error("Paystack error:", paystackData);
+      // Mark order failed in public.orders
+      await supabaseClient
+        .from("orders")
+        .update({
+          metadata: { ...orderMetadata, status: "failed", failure_reason: paystackData.message },
+        })
+        .eq("id", pendingOrderId);
+
+      if (promotionAssignment) {
+        try {
+          await supabaseClient.rpc("release_promotion_reservation", {
+            p_assignment_id: promotionAssignment.id,
+            p_order_id: pendingOrderId,
+          });
+        } catch (relErr) {
+          console.error("Failed to release promotion reservation on Paystack error:", relErr);
+        }
+      }
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    const { error: orderError } = await supabaseClient.from("orders").insert({
-      user_id: user.id,
-      plan_type: purchaseType,
-      total_amount: paystackAmount,
-      currency: "NGN",
-      payment_cycle: paymentCycle,
-      total_credits_paid_for: totalCreditsPaidFor,
-      tx_id: paystackData.data.reference,
-      is_success: false,
-      metadata: orderMetadata,
-    });
+    // 4. Update order with Paystack reference
+    const { error: updateOrderError } = await supabaseClient
+      .from("orders")
+      .update({
+        tx_id: paystackData.data.reference,
+        metadata: {
+          ...orderMetadata,
+          status: "pending",
+          paystack_reference: paystackData.data.reference,
+        },
+      })
+      .eq("id", pendingOrderId);
 
-    if (orderError) {
-      console.error("Order creation error:", orderError);
-      throw orderError;
+    if (updateOrderError) {
+      console.error("Failed to attach tx_id to order:", updateOrderError);
+    }
+
+    if (promotionAssignment) {
+      await supabaseClient
+        .from("promotion_redemptions")
+        .update({
+          provider_reference: paystackData.data.reference,
+        })
+        .eq("order_id", pendingOrderId);
     }
 
     return new Response(

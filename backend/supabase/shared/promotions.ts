@@ -80,6 +80,153 @@ export interface PromotionUserFeatures {
   lifecycle: PromotionLifecycle;
 }
 
+export interface CalculatePromotionPriceParams {
+  basePriceMinor: number;
+  discountPercent: number;
+}
+
+export interface PromotionPriceResult {
+  basePriceMinor: number;
+  discountMinor: number;
+  finalPriceMinor: number;
+}
+
+/**
+ * Pure, centralized minor-unit calculation for promotional prices.
+ * Returns authoritative integer minor units (e.g. cents, kobo).
+ */
+export function calculatePromotionPrice({
+  basePriceMinor,
+  discountPercent,
+}: CalculatePromotionPriceParams): PromotionPriceResult {
+  const safeBase = Math.max(0, Math.round(basePriceMinor));
+  const safeDiscountPct = Math.min(100, Math.max(0, Math.round(discountPercent)));
+  const discountMinor = Math.round((safeBase * safeDiscountPct) / 100);
+  const finalPriceMinor = Math.max(0, safeBase - discountMinor);
+
+  return {
+    basePriceMinor: safeBase,
+    discountMinor,
+    finalPriceMinor,
+  };
+}
+
+export type CanonicalBillingInterval = "monthly" | "quarterly" | "yearly";
+export type CanonicalProductType = "subscription" | "credit_pack" | "concurrency_pack";
+
+export interface CanonicalTargetProductSpec {
+  productType: CanonicalProductType;
+  planOrSku: string;
+  billingInterval?: CanonicalBillingInterval;
+}
+
+export function formatCanonicalProductId(spec: CanonicalTargetProductSpec): string {
+  if (spec.productType === "subscription") {
+    return `subscription:${spec.planOrSku}:${spec.billingInterval || "monthly"}`;
+  }
+  return `${spec.productType}:${spec.planOrSku}`;
+}
+
+export function parseCanonicalProductId(id: string): CanonicalTargetProductSpec | null {
+  if (!id || typeof id !== "string") return null;
+  const parts = id.split(":");
+  if (parts[0] === "subscription" && parts[1]) {
+    return {
+      productType: "subscription",
+      planOrSku: parts[1],
+      billingInterval: (parts[2] as CanonicalBillingInterval) || "monthly",
+    };
+  }
+  if ((parts[0] === "credit_pack" || parts[0] === "concurrency_pack") && parts[1]) {
+    return {
+      productType: parts[0] as CanonicalProductType,
+      planOrSku: parts[1],
+    };
+  }
+  return null;
+}
+
+/**
+ * Authoritatively validates whether a promotion target matches the product and interval being purchased.
+ * Policy: Percentage promotions apply to monthly subscription pricing only by default.
+ * Quarterly and yearly subscriptions are excluded unless explicitly opted into via allowedBillingIntervals.
+ */
+export function matchesTargetProduct(params: {
+  targetPlanOrProduct?: string | null;
+  allowedBillingIntervals?: CanonicalBillingInterval[];
+  productType: CanonicalProductType;
+  planOrSku: string;
+  billingInterval?: CanonicalBillingInterval;
+}): { match: boolean; reason?: string } {
+  const { targetPlanOrProduct, allowedBillingIntervals, productType, planOrSku, billingInterval } = params;
+
+  // Stacking prevention: multi-month / annual plans already have bundled discounts
+  const effectiveIntervals: CanonicalBillingInterval[] =
+    allowedBillingIntervals && allowedBillingIntervals.length > 0
+      ? allowedBillingIntervals
+      : ["monthly"];
+
+  if (productType === "subscription") {
+    const interval = billingInterval || "monthly";
+    if (!effectiveIntervals.includes(interval)) {
+      return {
+        match: false,
+        reason: `Promotional discounts apply only to ${effectiveIntervals.join(", ")} subscription plans and cannot stack with discounted ${interval} pricing.`,
+      };
+    }
+  }
+
+  if (!targetPlanOrProduct) {
+    return { match: true };
+  }
+
+  const parsedTarget = parseCanonicalProductId(targetPlanOrProduct);
+  if (parsedTarget) {
+    if (parsedTarget.productType !== productType) {
+      return {
+        match: false,
+        reason: `Promotion is valid only for ${parsedTarget.productType} purchases.`,
+      };
+    }
+    if (parsedTarget.planOrSku.toLowerCase() !== planOrSku.toLowerCase()) {
+      return {
+        match: false,
+        reason: `Promotion is valid only for ${parsedTarget.planOrSku}.`,
+      };
+    }
+    if (
+      productType === "subscription" &&
+      parsedTarget.billingInterval &&
+      parsedTarget.billingInterval !== (billingInterval || "monthly")
+    ) {
+      return {
+        match: false,
+        reason: `Promotion is valid only for ${parsedTarget.billingInterval} billing interval.`,
+      };
+    }
+    return { match: true };
+  }
+
+  if (productType === "subscription") {
+    if (targetPlanOrProduct.toLowerCase() !== planOrSku.toLowerCase()) {
+      return {
+        match: false,
+        reason: `Promotion is valid only for the ${targetPlanOrProduct} plan.`,
+      };
+    }
+    return { match: true };
+  }
+
+  if (targetPlanOrProduct.toLowerCase() !== planOrSku.toLowerCase()) {
+    return {
+      match: false,
+      reason: `Promotion is valid only for SKU ${targetPlanOrProduct}.`,
+    };
+  }
+
+  return { match: true };
+}
+
 export interface PromotionAssignmentRow {
   id: string;
   user_id: string;
@@ -89,6 +236,8 @@ export interface PromotionAssignmentRow {
   bonus_credits: number;
   bonus_auto_apply_runs: number;
   target_plan?: string | null;
+  target_product_id?: string | null;
+  bound_order_id?: string | null;
   message_variant: PromotionMessageVariant;
   placement: PromotionPlacement;
   headline?: string | null;
@@ -120,6 +269,7 @@ export interface PromotionDecisionContext {
     max_impressions_7d?: number;
     cooldown_days?: number;
     max_discount?: number;
+    allowed_billing_intervals?: CanonicalBillingInterval[];
   };
   now?: Date;
   activeAssignment?: PromotionAssignmentRow | null;
@@ -134,6 +284,8 @@ export interface PromotionDecision {
   bonusCredits?: number;
   bonusAutoApplyRuns?: number;
   targetPlan?: string;
+  targetProductId?: string;
+  allowedBillingIntervals?: CanonicalBillingInterval[];
   messageVariant: PromotionMessageVariant;
   placement: PromotionPlacement;
   headline?: string;
@@ -308,6 +460,7 @@ export class RuleBasedPromotionStrategy implements PromotionDecisionStrategy {
     const durationHours = config.default_duration_hours ?? PROMOTION_GUARDRAILS.DEFAULT_EXPIRY_HOURS;
     const campaignId = context.campaignId;
     const campaignSlug = context.campaignSlug || "default_v1_campaign";
+    const allowedBillingIntervals = config.allowed_billing_intervals || ["monthly"];
 
     // 1. Guardrail: Existing active unexpired assignment (PERSISTENCE CHECK)
     if (context.activeAssignment && context.activeAssignment.status === "active") {
@@ -323,6 +476,7 @@ export class RuleBasedPromotionStrategy implements PromotionDecisionStrategy {
           bonusCredits: active.bonus_credits,
           bonusAutoApplyRuns: active.bonus_auto_apply_runs,
           targetPlan: active.target_plan || undefined,
+          allowedBillingIntervals,
           messageVariant: active.message_variant,
           placement: active.placement,
           headline: active.headline || undefined,

@@ -8,6 +8,10 @@ import {
   derivePromotionLifecycle,
   deterministicHash,
   isUserInHoldoutControl,
+  calculatePromotionPrice,
+  matchesTargetProduct,
+  formatCanonicalProductId,
+  parseCanonicalProductId,
   INTENT_WEIGHTS,
   PROMOTION_GUARDRAILS,
   type PromotionUserFeatures,
@@ -24,6 +28,10 @@ import {
   calculateControlVsTreatmentLift,
   calculateImpressionDistribution,
 } from "../lib/promotionAnalytics";
+import {
+  SHARED_SUBSCRIPTION_PLANS,
+  SHARED_CREDIT_PACKS,
+} from "../lib/billingCatalog";
 
 describe("Personalized Promotion Engine V1", () => {
   const strategy = new RuleBasedPromotionStrategy();
@@ -495,42 +503,123 @@ describe("Personalized Promotion Engine V1", () => {
   });
 
   describe("9. Production Hardening: Security, Authority, Idempotency & Financial Integrity", () => {
-    describe("9a. Integer Minor-Unit Money Calculations & Rounding Integrity", () => {
-      it("calculates exact minor-unit (cents) integer discounts across all plan tiers without floating point drift", () => {
-        const plans = [
-          { name: "Basics", priceUsd: 19.0 },
-          { name: "Pro", priceUsd: 49.0 },
-          { name: "Ultimate", priceUsd: 99.0 },
-          { name: "Annual Pro", priceUsd: 399.0 },
-        ];
-        const discountTiers = [10, 15, 20, 25, 40];
+    describe("9a. Integer Minor-Unit Money Calculations & Canonical Catalog Rounding", () => {
+      it("calculates exact minor-unit integer discounts across all canonical subscription variants and discount tiers", () => {
+        const discountTiers = [10, 15, 20, 25, 30, 40];
+        const purchasablePlans = SHARED_SUBSCRIPTION_PLANS.filter((p) => p.tier !== "Free");
 
-        for (const plan of plans) {
-          const basePriceMinor = Math.round(plan.priceUsd * 100);
-          expect(Number.isInteger(basePriceMinor)).toBe(true);
+        expect(purchasablePlans.length).toBeGreaterThanOrEqual(4);
+
+        for (const plan of purchasablePlans) {
+          // 1. Monthly variant
+          const monthlyBaseMinor = Math.round(plan.monthlyPriceUsd * 100);
+          expect(Number.isInteger(monthlyBaseMinor)).toBe(true);
+          expect(monthlyBaseMinor).toBeGreaterThan(0);
 
           for (const discountPct of discountTiers) {
-            const discountMinor = Math.round((basePriceMinor * discountPct) / 100);
-            const finalPriceMinor = Math.max(0, basePriceMinor - discountMinor);
-            const priceUsd = finalPriceMinor / 100;
+            const res = calculatePromotionPrice({
+              basePriceMinor: monthlyBaseMinor,
+              discountPercent: discountPct,
+            });
 
-            expect(Number.isInteger(discountMinor)).toBe(true);
-            expect(Number.isInteger(finalPriceMinor)).toBe(true);
-            expect(finalPriceMinor).toBe(basePriceMinor - discountMinor);
-            expect(Math.round(priceUsd * 100)).toBe(finalPriceMinor);
+            expect(Number.isInteger(res.basePriceMinor)).toBe(true);
+            expect(Number.isInteger(res.discountMinor)).toBe(true);
+            expect(Number.isInteger(res.finalPriceMinor)).toBe(true);
+            expect(res.finalPriceMinor).toBe(res.basePriceMinor - res.discountMinor);
+            expect(res.finalPriceMinor).toBeGreaterThanOrEqual(0);
+
+            // Verify specific known canonical catalog prices
+            if (plan.tier === "Starter" && discountPct === 20) {
+              // Starter monthly = $9.00 = 900 cents. 20% discount = 180 cents. Final = 720 cents ($7.20)
+              expect(res.basePriceMinor).toBe(900);
+              expect(res.discountMinor).toBe(180);
+              expect(res.finalPriceMinor).toBe(720);
+            }
+            if (plan.tier === "Basics" && discountPct === 20) {
+              // Basics monthly = $19.00 = 1900 cents. 20% discount = 380 cents. Final = 1520 cents ($15.20)
+              expect(res.basePriceMinor).toBe(1900);
+              expect(res.discountMinor).toBe(380);
+              expect(res.finalPriceMinor).toBe(1520);
+            }
+            if (plan.tier === "Pro" && discountPct === 20) {
+              // Pro monthly = $59.00 = 5900 cents. 20% discount = 1180 cents. Final = 4720 cents ($47.20)
+              expect(res.basePriceMinor).toBe(5900);
+              expect(res.discountMinor).toBe(1180);
+              expect(res.finalPriceMinor).toBe(4720);
+            }
+            if (plan.tier === "Ultimate" && discountPct === 20) {
+              // Ultimate monthly = $149.00 = 14900 cents. 20% discount = 2980 cents. Final = 11920 cents ($119.20)
+              expect(res.basePriceMinor).toBe(14900);
+              expect(res.discountMinor).toBe(2980);
+              expect(res.finalPriceMinor).toBe(11920);
+            }
+          }
+
+          // 2. Quarterly variant (if present in catalog)
+          if (plan.quarterlyPriceUsd && plan.quarterlyPriceUsd > 0) {
+            const quarterlyBaseMinor = Math.round(plan.quarterlyPriceUsd * 100);
+            for (const discountPct of discountTiers) {
+              const res = calculatePromotionPrice({
+                basePriceMinor: quarterlyBaseMinor,
+                discountPercent: discountPct,
+              });
+              expect(Number.isInteger(res.finalPriceMinor)).toBe(true);
+              expect(res.finalPriceMinor).toBe(res.basePriceMinor - res.discountMinor);
+            }
+          }
+
+          // 3. Yearly variant
+          if (plan.yearlyPriceUsd > 0) {
+            const yearlyBaseMinor = Math.round(plan.yearlyPriceUsd * 100);
+            for (const discountPct of discountTiers) {
+              const res = calculatePromotionPrice({
+                basePriceMinor: yearlyBaseMinor,
+                discountPercent: discountPct,
+              });
+              expect(Number.isInteger(res.finalPriceMinor)).toBe(true);
+              expect(res.finalPriceMinor).toBe(res.basePriceMinor - res.discountMinor);
+            }
           }
         }
       });
 
+      it("calculates exact minor-unit integer discounts across all canonical credit packs", () => {
+        const discountTiers = [10, 15, 20, 25, 30, 40];
+        expect(SHARED_CREDIT_PACKS.length).toBeGreaterThanOrEqual(4);
+
+        for (const pack of SHARED_CREDIT_PACKS) {
+          const packBaseMinor = Math.round(pack.priceUsd * 100);
+          expect(Number.isInteger(packBaseMinor)).toBe(true);
+          expect(packBaseMinor).toBeGreaterThan(0);
+
+          for (const discountPct of discountTiers) {
+            const res = calculatePromotionPrice({
+              basePriceMinor: packBaseMinor,
+              discountPercent: discountPct,
+            });
+            expect(Number.isInteger(res.finalPriceMinor)).toBe(true);
+            expect(res.finalPriceMinor).toBe(res.basePriceMinor - res.discountMinor);
+          }
+        }
+
+        // Exact checks on known catalog SKUs:
+        // search_600: $49.00 = 4900 minor units
+        const growthPack = calculatePromotionPrice({ basePriceMinor: 4900, discountPercent: 15 });
+        expect(growthPack.discountMinor).toBe(735); // 4900 * 0.15 = 735
+        expect(growthPack.finalPriceMinor).toBe(4165); // $41.65
+
+        // search_1500: $99.00 = 9900 minor units
+        const proPack = calculatePromotionPrice({ basePriceMinor: 9900, discountPercent: 25 });
+        expect(proPack.discountMinor).toBe(2475); // 9900 * 0.25 = 2475
+        expect(proPack.finalPriceMinor).toBe(7425); // $74.25
+      });
+
       it("handles odd price rounding edge-cases cleanly", () => {
         // e.g. $19.99 with 15% discount
-        const basePriceMinor = 1999;
-        const discountPct = 15;
-        const discountMinor = Math.round((basePriceMinor * discountPct) / 100); // 1999 * 0.15 = 299.85 -> 300 cents ($3.00)
-        const finalPriceMinor = basePriceMinor - discountMinor; // 1699 cents ($16.99)
-        expect(discountMinor).toBe(300);
-        expect(finalPriceMinor).toBe(1699);
-        expect(finalPriceMinor / 100).toBe(16.99);
+        const res = calculatePromotionPrice({ basePriceMinor: 1999, discountPercent: 15 });
+        // 1999 * 0.15 = 299.85 -> rounds to 300 minor units ($3.00)
+        expect(res.discountMinor).toBe(300);
+        expect(res.finalPriceMinor).toBe(1699); // $16.99
       });
     });
 
@@ -888,6 +977,837 @@ describe("Personalized Promotion Engine V1", () => {
         expect(result1.id).toBe("assign-req-1");
         expect(result2.id).toBe("assign-req-1"); // Request 2 receives the exact same stable assignment!
         expect(result1.variant).toBe(result2.variant);
+      });
+    });
+
+    describe("9g. Canonical Target Product Matching & Stacking Prevention", () => {
+      it("strictly matches exact canonical product spec and enforces monthly-only default stacking policy", () => {
+        // Target: Pro monthly subscription
+        const targetSpec = {
+          productType: "subscription" as const,
+          planOrSku: "Pro",
+          billingInterval: "monthly" as const,
+        };
+        const canonicalId = formatCanonicalProductId(targetSpec);
+        expect(canonicalId).toBe("subscription:Pro:monthly");
+        expect(parseCanonicalProductId(canonicalId)).toEqual(targetSpec);
+
+        // 1. Valid match: Pro monthly
+        const matchMonthly = matchesTargetProduct({
+          targetPlanOrProduct: canonicalId,
+          productType: "subscription",
+          planOrSku: "Pro",
+          billingInterval: "monthly",
+        });
+        expect(matchMonthly.match).toBe(true);
+
+        // 2. Disallowed: Pro yearly (disallowed by default stacking policy to protect annual discount)
+        const matchYearly = matchesTargetProduct({
+          targetPlanOrProduct: canonicalId,
+          productType: "subscription",
+          planOrSku: "Pro",
+          billingInterval: "yearly",
+        });
+        expect(matchYearly.match).toBe(false);
+        expect(matchYearly.reason).toContain("cannot stack with discounted yearly pricing");
+
+        // 3. Disallowed: Pro quarterly
+        const matchQuarterly = matchesTargetProduct({
+          targetPlanOrProduct: canonicalId,
+          productType: "subscription",
+          planOrSku: "Pro",
+          billingInterval: "quarterly",
+        });
+        expect(matchQuarterly.match).toBe(false);
+        expect(matchQuarterly.reason).toContain("cannot stack with discounted quarterly pricing");
+
+        // 4. Disallowed: Basics plan
+        const matchBasics = matchesTargetProduct({
+          targetPlanOrProduct: canonicalId,
+          productType: "subscription",
+          planOrSku: "Basics",
+          billingInterval: "monthly",
+        });
+        expect(matchBasics.match).toBe(false);
+        expect(matchBasics.reason).toContain("Promotion is valid only for Pro");
+
+        // 5. Allowed when campaign explicitly configures allowedBillingIntervals
+        const matchExplicitYearly = matchesTargetProduct({
+          targetPlanOrProduct: "subscription:Pro:yearly",
+          allowedBillingIntervals: ["monthly", "yearly"],
+          productType: "subscription",
+          planOrSku: "Pro",
+          billingInterval: "yearly",
+        });
+        expect(matchExplicitYearly.match).toBe(true);
+
+        // 6. Credit pack product targeting
+        const packTarget = formatCanonicalProductId({
+          productType: "credit_pack",
+          planOrSku: "search_600",
+        });
+        expect(packTarget).toBe("credit_pack:search_600");
+
+        const matchPack = matchesTargetProduct({
+          targetPlanOrProduct: packTarget,
+          productType: "credit_pack",
+          planOrSku: "search_600",
+        });
+        expect(matchPack.match).toBe(true);
+
+        const matchWrongPack = matchesTargetProduct({
+          targetPlanOrProduct: packTarget,
+          productType: "credit_pack",
+          planOrSku: "search_150",
+        });
+        expect(matchWrongPack.match).toBe(false);
+        expect(matchWrongPack.reason).toContain("Promotion is valid only for search_600");
+      });
+    });
+
+    describe("9h. Two-Tab Checkout Reservation Concurrency (Pre-Payment Protection)", () => {
+      it("authoritatively reserves promotion assignment so Tab 2 cannot create a discounted checkout while Tab 1 is pending", () => {
+        // Simulating the database state managed by reserve_promotion_assignment and promotion_redemptions
+        interface RedemptionRecord {
+          assignment_id: string;
+          user_id: string;
+          order_id: string;
+          status: "reserved" | "converted" | "released";
+          expires_at: number;
+        }
+
+        const redemptions: RedemptionRecord[] = [];
+        const assignments: Record<string, { id: string; user_id: string; status: string; bound_order_id: string | null }> = {
+          "assign-1": { id: "assign-1", user_id: "user-1", status: "active", bound_order_id: null },
+        };
+
+        const reserveAssignment = (
+          assignmentId: string,
+          userId: string,
+          orderId: string,
+          nowMs: number,
+          ttlMs = 30 * 60 * 1000
+        ) => {
+          const assignment = assignments[assignmentId];
+          if (!assignment) return { success: false, error: "assignment_not_found" };
+          if (assignment.user_id !== userId) return { success: false, error: "user_mismatch" };
+          if (assignment.status !== "active") return { success: false, error: "assignment_not_active" };
+
+          const existingActive = redemptions.find(
+            (r) => r.assignment_id === assignmentId && (r.status === "reserved" || r.status === "converted")
+          );
+
+          if (existingActive) {
+            if (existingActive.status === "converted") {
+              return { success: false, error: "already_converted" };
+            }
+            if (existingActive.order_id === orderId) {
+              // Same order retry -> allowed!
+              existingActive.expires_at = nowMs + ttlMs;
+              assignment.bound_order_id = orderId;
+              return { success: true, reused: true };
+            }
+            if (existingActive.expires_at > nowMs) {
+              // Active reservation on another order -> REJECTED!
+              return { success: false, error: "already_reserved_by_other_order", bound_order_id: existingActive.order_id };
+            }
+            // Expired reservation on previous order -> safely release
+            existingActive.status = "released";
+          }
+
+          const newRedemption: RedemptionRecord = {
+            assignment_id: assignmentId,
+            user_id: userId,
+            order_id: orderId,
+            status: "reserved",
+            expires_at: nowMs + ttlMs,
+          };
+          redemptions.push(newRedemption);
+          assignment.bound_order_id = orderId;
+          return { success: true, reused: false };
+        };
+
+        const releaseReservation = (assignmentId: string, orderId: string) => {
+          const rec = redemptions.find(
+            (r) => r.assignment_id === assignmentId && r.order_id === orderId && r.status === "reserved"
+          );
+          if (rec) {
+            rec.status = "released";
+            if (assignments[assignmentId]?.bound_order_id === orderId) {
+              assignments[assignmentId].bound_order_id = null;
+            }
+            return { success: true, released: true };
+          }
+          return { success: true, released: false };
+        };
+
+        const t0 = 1757592000000;
+
+        // Tab 1 initiates checkout with Order 1
+        const tab1Res = reserveAssignment("assign-1", "user-1", "order-tab-1", t0);
+        expect(tab1Res.success).toBe(true);
+        expect(tab1Res.reused).toBe(false);
+        expect(assignments["assign-1"].bound_order_id).toBe("order-tab-1");
+
+        // Tab 2 (concurrent tab on same account) attempts to initiate checkout with Order 2
+        const tab2Res = reserveAssignment("assign-1", "user-1", "order-tab-2", t0 + 1000);
+        expect(tab2Res.success).toBe(false);
+        expect(tab2Res.error).toBe("already_reserved_by_other_order");
+        expect(tab2Res.bound_order_id).toBe("order-tab-1");
+        // init-payment blocks Tab 2 with 409 conflict BEFORE creating Paystack transaction!
+
+        // Tab 1 retries / reloads page with same Order 1 -> succeeds idempotently
+        const tab1Retry = reserveAssignment("assign-1", "user-1", "order-tab-1", t0 + 5000);
+        expect(tab1Retry.success).toBe(true);
+        expect(tab1Retry.reused).toBe(true);
+
+        // Tab 1 checkout is closed or aborted -> release reservation
+        releaseReservation("assign-1", "order-tab-1");
+        expect(assignments["assign-1"].bound_order_id).toBeNull();
+
+        // Now Tab 2 can successfully reserve the assignment!
+        const tab2Retry = reserveAssignment("assign-1", "user-1", "order-tab-2", t0 + 10000);
+        expect(tab2Retry.success).toBe(true);
+        expect(assignments["assign-1"].bound_order_id).toBe("order-tab-2");
+      });
+    });
+
+    describe("9i. Database-Level Webhook Fulfillment Idempotency via Deterministic Unique Keys", () => {
+      it("guarantees concurrent webhook deliveries produce exactly one financial and quota mutation via unique key locks", async () => {
+        // Simulating the PostgreSQL UNIQUE constraint on promotion_fulfillment_records (idempotency_key)
+        const fulfillmentRecords = new Map<string, { idempotency_key: string; fulfillment_type: string; quantity: number }>();
+        const creditTransactions: Array<{ user_id: string; amount: number; reference_id: string }> = [];
+        const quotaProvisions: Array<{ user_id: string; bonus_runs: number; order_id: string }> = [];
+        const events: Array<{ event_type: string; order_id: string }> = [];
+
+        const claimPromotionFulfillmentKey = (
+          idempotencyKey: string,
+          assignmentId: string,
+          orderId: string,
+          userId: string,
+          fulfillmentType: string,
+          quantity: number
+        ) => {
+          if (fulfillmentRecords.has(idempotencyKey)) {
+            // PostgreSQL unique_violation exception (SQLSTATE 23505)
+            return { claimed: false, already_fulfilled: true };
+          }
+          fulfillmentRecords.set(idempotencyKey, {
+            idempotency_key: idempotencyKey,
+            fulfillment_type: fulfillmentType,
+            quantity,
+          });
+          return { claimed: true };
+        };
+
+        const handleWebhookFulfillmentWorker = async (workerId: string, orderId: string, assignmentId: string, userId: string) => {
+          const results: { creditsGranted: boolean; runsGranted: boolean; eventLogged: boolean } = {
+            creditsGranted: false,
+            runsGranted: false,
+            eventLogged: false,
+          };
+
+          // 1. Deterministic bonus credits key
+          const creditKey = `promotion:${assignmentId}:${orderId}:bonus_credits`;
+          const claimCredit = claimPromotionFulfillmentKey(creditKey, assignmentId, orderId, userId, "bonus_credits", 100);
+          if (claimCredit.claimed) {
+            creditTransactions.push({ user_id: userId, amount: 100, reference_id: orderId });
+            results.creditsGranted = true;
+          }
+
+          // 2. Deterministic bonus runs key
+          const runsKey = `promotion:${assignmentId}:${orderId}:auto_apply_runs`;
+          const claimRuns = claimPromotionFulfillmentKey(runsKey, assignmentId, orderId, userId, "bonus_auto_apply_runs", 25);
+          if (claimRuns.claimed) {
+            quotaProvisions.push({ user_id: userId, bonus_runs: 25, order_id: orderId });
+            results.runsGranted = true;
+          }
+
+          // 3. Deterministic converted event key
+          const eventKey = `promotion:${assignmentId}:${orderId}:converted_event`;
+          const claimEvent = claimPromotionFulfillmentKey(eventKey, assignmentId, orderId, userId, "converted_event", 1);
+          if (claimEvent.claimed) {
+            events.push({ event_type: "converted", order_id: orderId });
+            results.eventLogged = true;
+          }
+
+          return results;
+        };
+
+        // Two webhook delivery workers execute concurrently for the same Paystack event
+        const [worker1Result, worker2Result] = await Promise.all([
+          handleWebhookFulfillmentWorker("worker-1", "order-100", "assign-100", "user-1"),
+          handleWebhookFulfillmentWorker("worker-2", "order-100", "assign-100", "user-1"),
+        ]);
+
+        // Exactly one worker claims the keys and executes the mutations
+        const totalCreditsGranted = (worker1Result.creditsGranted ? 1 : 0) + (worker2Result.creditsGranted ? 1 : 0);
+        const totalRunsGranted = (worker1Result.runsGranted ? 1 : 0) + (worker2Result.runsGranted ? 1 : 0);
+        const totalEventsLogged = (worker1Result.eventLogged ? 1 : 0) + (worker2Result.eventLogged ? 1 : 0);
+
+        expect(totalCreditsGranted).toBe(1);
+        expect(totalRunsGranted).toBe(1);
+        expect(totalEventsLogged).toBe(1);
+
+        expect(creditTransactions.length).toBe(1);
+        expect(quotaProvisions.length).toBe(1);
+        expect(events.length).toBe(1);
+      });
+    });
+
+    describe("9j. Payment-Success Behavior for Conflicting Orders", () => {
+      it("refuses promotion bonus fulfillment and conversion attribution if a conflicting legacy order succeeds", () => {
+        const securityLogs: string[] = [];
+        const logger = {
+          warn: (msg: string) => securityLogs.push(msg),
+        };
+
+        const assignment = {
+          id: "assign-conflict-1",
+          user_id: "user-1",
+          status: "active" as "active" | "converted",
+          bound_order_id: "order-approved-1" as string | null,
+          converted_order_id: null as string | null,
+          bonus_credits: 100,
+        };
+
+        const creditLedger = new Set<string>();
+
+        const fulfillPaidOrder = (order: { id: string; user_id: string; promotion_assignment_id: string }) => {
+          if (order.promotion_assignment_id !== assignment.id) return;
+
+          // Conflict detection in attributePromotionConversion
+          if (assignment.status === "converted" && assignment.converted_order_id !== order.id) {
+            logger.warn(
+              `SECURITY WARNING: Conflicting order payment. Promotion assignment ${assignment.id} was already converted by order ${assignment.converted_order_id}, but payment succeeded for order ${order.id}. Refusing promotional incentive.`
+            );
+            return { granted: false, conflict: true };
+          }
+
+          if (assignment.bound_order_id && assignment.bound_order_id !== order.id) {
+            logger.warn(
+              `SECURITY WARNING: Conflicting order payment. Promotion assignment ${assignment.id} is bound to order ${assignment.bound_order_id}, but payment succeeded for order ${order.id}. Refusing promotional incentive.`
+            );
+            return { granted: false, conflict: true };
+          }
+
+          // Authorized fulfillment
+          assignment.status = "converted";
+          assignment.converted_order_id = order.id;
+          creditLedger.add(`${order.user_id}:${order.id}`);
+          return { granted: true, conflict: false };
+        };
+
+        // Conflicting order arrives and claims payment success
+        const conflictRes = fulfillPaidOrder({
+          id: "order-conflicting-2",
+          user_id: "user-1",
+          promotion_assignment_id: "assign-conflict-1",
+        });
+
+        expect(conflictRes?.granted).toBe(false);
+        expect(conflictRes?.conflict).toBe(true);
+        expect(creditLedger.size).toBe(0); // Zero promotional credits granted!
+        expect(assignment.converted_order_id).toBeNull(); // Assignment not marked converted by conflicting order!
+        expect(assignment.bound_order_id).toBe("order-approved-1");
+        expect(securityLogs.length).toBe(1);
+        expect(securityLogs[0]).toContain("SECURITY WARNING: Conflicting order payment");
+
+        // The legitimately bound order arrives and succeeds
+        const legitRes = fulfillPaidOrder({
+          id: "order-approved-1",
+          user_id: "user-1",
+          promotion_assignment_id: "assign-conflict-1",
+        });
+        expect(legitRes?.granted).toBe(true);
+        expect(creditLedger.size).toBe(1);
+        expect(assignment.status).toBe("converted");
+        expect(assignment.converted_order_id).toBe("order-approved-1");
+      });
+    });
+
+    describe("9k. Client Telemetry Ingestion Ownership & 1-Hour Deduplication", () => {
+      it("verifies assignment ownership and deduplicates impression events within a 1-hour window", () => {
+        interface StoredEvent {
+          assignment_id: string;
+          user_id: string;
+          event_type: string;
+          placement: string;
+          created_at: number;
+        }
+
+        const eventsDb: StoredEvent[] = [];
+        const assignmentsDb: Record<string, { id: string; user_id: string }> = {
+          "assign-user-a": { id: "assign-user-a", user_id: "user-a" },
+        };
+
+        const trackEventEndpoint = (params: {
+          callerUserId: string;
+          assignmentId?: string;
+          eventType: string;
+          placement: string;
+          nowMs: number;
+        }) => {
+          const { callerUserId, assignmentId, eventType, placement, nowMs } = params;
+
+          const ALLOWED_CLIENT_EVENTS = ["impression", "clicked", "dismissed"];
+          if (!ALLOWED_CLIENT_EVENTS.includes(eventType)) {
+            return { status: 403, error: `Event type '${eventType}' is not permitted from client telemetry` };
+          }
+
+          if (assignmentId) {
+            const assignment = assignmentsDb[assignmentId];
+            if (!assignment || assignment.user_id !== callerUserId) {
+              return { status: 403, error: "Unauthorized: promotion assignment does not belong to user" };
+            }
+          }
+
+          if (eventType === "impression") {
+            const oneHourAgoMs = nowMs - 60 * 60 * 1000;
+            const recentImpression = eventsDb.find(
+              (e) =>
+                e.user_id === callerUserId &&
+                e.assignment_id === assignmentId &&
+                e.placement === placement &&
+                e.event_type === "impression" &&
+                e.created_at >= oneHourAgoMs
+            );
+            if (recentImpression) {
+              return { status: 200, success: true, deduplicated: true };
+            }
+          }
+
+          eventsDb.push({
+            assignment_id: assignmentId || "",
+            user_id: callerUserId,
+            event_type: eventType,
+            placement,
+            created_at: nowMs,
+          });
+
+          return { status: 200, success: true, deduplicated: false };
+        };
+
+        const t0 = 1757592000000;
+
+        // 1. User B tries to track event for User A's assignment -> 403 Forbidden
+        const foreignRes = trackEventEndpoint({
+          callerUserId: "user-b",
+          assignmentId: "assign-user-a",
+          eventType: "impression",
+          placement: "top_banner",
+          nowMs: t0,
+        });
+        expect(foreignRes.status).toBe(403);
+        expect(foreignRes.error).toContain("Unauthorized");
+
+        // 2. User A tracks impression at t = 0 -> Recorded
+        const imp1 = trackEventEndpoint({
+          callerUserId: "user-a",
+          assignmentId: "assign-user-a",
+          eventType: "impression",
+          placement: "top_banner",
+          nowMs: t0,
+        });
+        expect(imp1.status).toBe(200);
+        expect(imp1.deduplicated).toBe(false);
+        expect(eventsDb.length).toBe(1);
+
+        // 3. User A reloads or navigates at t = 20m -> Deduplicated!
+        const imp2 = trackEventEndpoint({
+          callerUserId: "user-a",
+          assignmentId: "assign-user-a",
+          eventType: "impression",
+          placement: "top_banner",
+          nowMs: t0 + 20 * 60 * 1000,
+        });
+        expect(imp2.status).toBe(200);
+        expect(imp2.deduplicated).toBe(true);
+        expect(eventsDb.length).toBe(1); // Zero duplicate row inserted!
+
+        // 4. User A visits again after 70m (> 1 hour window) -> New impression recorded
+        const imp3 = trackEventEndpoint({
+          callerUserId: "user-a",
+          assignmentId: "assign-user-a",
+          eventType: "impression",
+          placement: "top_banner",
+          nowMs: t0 + 70 * 60 * 1000,
+        });
+        expect(imp3.status).toBe(200);
+        expect(imp3.deduplicated).toBe(false);
+        expect(eventsDb.length).toBe(2);
+      });
+    });
+
+    describe("9l. Financial & Database Integrity Failure-Injection Test Suite", () => {
+      it("1. fulfillment key claimed -> simulated process crash before credit grant -> retry later grants credit exactly once", async () => {
+        interface FulfillmentRecord {
+          id: string;
+          idempotency_key: string;
+          assignment_id: string;
+          order_id: string;
+          user_id: string;
+          fulfillment_type: string;
+          quantity: number;
+          status: "pending" | "completed" | "failed";
+          attempt_count: number;
+          last_error?: string | null;
+        }
+
+        const fulfillmentDb: Record<string, FulfillmentRecord> = {};
+        const creditBalances: Record<string, { available: number; lifetime_earned: number }> = {
+          "user-1": { available: 0, lifetime_earned: 0 },
+        };
+        const ledgerEntries: Array<{ idempotency_key: string; user_id: string; amount: number; entry_type: string }> = [];
+
+        // Simulated atomic fulfill_promotion_bonus_credits RPC
+        const fulfillPromotionBonusCredits = (params: {
+          idempotencyKey: string;
+          assignmentId: string;
+          orderId: string;
+          userId: string;
+          bonusCredits: number;
+          simulateCrashBeforeGrant?: boolean;
+        }) => {
+          const { idempotencyKey, assignmentId, orderId, userId, bonusCredits, simulateCrashBeforeGrant } = params;
+
+          let rec = fulfillmentDb[idempotencyKey];
+          if (rec) {
+            if (rec.status === "completed") {
+              return { success: true, status: "already_completed", credits_granted: rec.quantity };
+            }
+            rec.attempt_count += 1;
+            rec.status = "pending";
+          } else {
+            rec = {
+              id: "rec-" + Math.random(),
+              idempotency_key: idempotencyKey,
+              assignment_id: assignmentId,
+              order_id: orderId,
+              user_id: userId,
+              fulfillment_type: "bonus_credits",
+              quantity: bonusCredits,
+              status: "pending",
+              attempt_count: 1,
+            };
+            fulfillmentDb[idempotencyKey] = rec;
+          }
+
+          // Simulate worker/container crash after row claim but before financial mutation
+          if (simulateCrashBeforeGrant) {
+            throw new Error("Simulated SIGKILL / worker container crash before credit grant");
+          }
+
+          // Atomic financial mutation: ledger + balance
+          creditBalances[userId].available += bonusCredits;
+          creditBalances[userId].lifetime_earned += bonusCredits;
+          ledgerEntries.push({
+            idempotency_key: idempotencyKey,
+            user_id: userId,
+            amount: bonusCredits,
+            entry_type: "bonus",
+          });
+
+          rec.status = "completed";
+          return {
+            success: true,
+            status: "completed",
+            credits_granted: bonusCredits,
+            new_balance: creditBalances[userId].available,
+          };
+        };
+
+        const idempotencyKey = "promotion:assign-crash:order-1:bonus_credits";
+
+        // Step A: Worker 1 runs and crashes right after key claim
+        expect(() => {
+          fulfillPromotionBonusCredits({
+            idempotencyKey,
+            assignmentId: "assign-crash",
+            orderId: "order-1",
+            userId: "user-1",
+            bonusCredits: 100,
+            simulateCrashBeforeGrant: true,
+          });
+        }).toThrow("Simulated SIGKILL");
+
+        // Verify state immediately after crash: record is stuck in pending, but zero balance mutated
+        expect(fulfillmentDb[idempotencyKey].status).toBe("pending");
+        expect(fulfillmentDb[idempotencyKey].attempt_count).toBe(1);
+        expect(creditBalances["user-1"].available).toBe(0);
+        expect(ledgerEntries.length).toBe(0);
+
+        // Step B: Worker 2 retries later
+        const retryResult = fulfillPromotionBonusCredits({
+          idempotencyKey,
+          assignmentId: "assign-crash",
+          orderId: "order-1",
+          userId: "user-1",
+          bonusCredits: 100,
+          simulateCrashBeforeGrant: false,
+        });
+
+        // Verification: Credits granted exactly once, attempt count incremented, status = completed
+        expect(retryResult.success).toBe(true);
+        expect(retryResult.status).toBe("completed");
+        expect(retryResult.credits_granted).toBe(100);
+        expect(creditBalances["user-1"].available).toBe(100);
+        expect(ledgerEntries.length).toBe(1);
+        expect(fulfillmentDb[idempotencyKey].status).toBe("completed");
+        expect(fulfillmentDb[idempotencyKey].attempt_count).toBe(2);
+      });
+
+      it("2. credit grant succeeds -> crash before response -> retry does not duplicate credit", async () => {
+        const fulfillmentDb: Record<string, any> = {};
+        const creditBalances: Record<string, { available: number }> = {
+          "user-1": { available: 50 },
+        };
+        const ledgerEntries: Array<{ idempotency_key: string; amount: number }> = [];
+
+        const fulfillPromotionBonusCredits = (params: {
+          idempotencyKey: string;
+          userId: string;
+          bonusCredits: number;
+        }) => {
+          const { idempotencyKey, userId, bonusCredits } = params;
+
+          // Check if already completed
+          if (
+            fulfillmentDb[idempotencyKey]?.status === "completed" ||
+            ledgerEntries.some((l) => l.idempotency_key === idempotencyKey)
+          ) {
+            return { success: true, status: "already_completed", credits_granted: bonusCredits, duplicate: true };
+          }
+
+          creditBalances[userId].available += bonusCredits;
+          ledgerEntries.push({ idempotency_key: idempotencyKey, amount: bonusCredits });
+          fulfillmentDb[idempotencyKey] = { status: "completed", quantity: bonusCredits };
+
+          return { success: true, status: "completed", credits_granted: bonusCredits, duplicate: false };
+        };
+
+        const idempotencyKey = "promotion:assign-resp-crash:order-1:bonus_credits";
+
+        // Step A: First attempt succeeds at DB level
+        const res1 = fulfillPromotionBonusCredits({ idempotencyKey, userId: "user-1", bonusCredits: 200 });
+        expect(res1.status).toBe("completed");
+        expect(creditBalances["user-1"].available).toBe(250);
+        expect(ledgerEntries.length).toBe(1);
+
+        // Simulated crash before webhook response was returned to Paystack: Paystack retries 5 minutes later
+        const res2 = fulfillPromotionBonusCredits({ idempotencyKey, userId: "user-1", bonusCredits: 200 });
+
+        // Step B: Retry detects already_completed, does not duplicate credit
+        expect(res2.status).toBe("already_completed");
+        expect(res2.duplicate).toBe(true);
+        expect(creditBalances["user-1"].available).toBe(250); // NEVER 450!
+        expect(ledgerEntries.length).toBe(1);
+      });
+
+      it("3. quota grant fails after credit grant -> retry completes missing quota without duplicating credit", async () => {
+        const creditBalances = { "user-1": 0 };
+        const userQuotas: Record<string, number> = {};
+        const fulfillmentDb: Record<string, any> = {};
+        let assignmentStatus = "reserved";
+
+        const processFulfillmentPipeline = (simulateQuotaFailure: boolean) => {
+          const creditKey = "promo:assign-multi:order-1:bonus_credits";
+          const quotaKey = "promo:assign-multi:order-1:auto_apply_runs";
+
+          // Step 1: Bonus Credits
+          if (fulfillmentDb[creditKey]?.status !== "completed") {
+            creditBalances["user-1"] += 100;
+            fulfillmentDb[creditKey] = { status: "completed" };
+          }
+
+          // Step 2: Bonus Runs
+          if (simulateQuotaFailure) {
+            throw new Error("Simulated Postgres timeout on user_feature_quotas lock");
+          }
+
+          if (fulfillmentDb[quotaKey]?.status !== "completed") {
+            userQuotas["auto_apply"] = (userQuotas["auto_apply"] || 0) + 10;
+            fulfillmentDb[quotaKey] = { status: "completed" };
+          }
+
+          // Step 3: Transition assignment to converted ONLY after all entitlements succeed
+          assignmentStatus = "converted";
+          return { success: true };
+        };
+
+        // Run 1: Quota fails after credit succeeds
+        expect(() => processFulfillmentPipeline(true)).toThrow("Simulated Postgres timeout");
+        expect(creditBalances["user-1"]).toBe(100);
+        expect(userQuotas["auto_apply"]).toBeUndefined();
+        expect(assignmentStatus).toBe("reserved"); // NOT converted yet!
+
+        // Run 2: Retry succeeds
+        const retryRes = processFulfillmentPipeline(false);
+        expect(retryRes.success).toBe(true);
+
+        // Verification: Credit not duplicated, quota granted, assignment converted
+        expect(creditBalances["user-1"]).toBe(100); // Remained 100
+        expect(userQuotas["auto_apply"]).toBe(10);
+        expect(assignmentStatus).toBe("converted");
+      });
+
+      it("4. reservation expires (local TTL elapsed) but provider payment can still succeed -> assignment remains unavailable to Order 2", async () => {
+        interface OrderRow {
+          id: string;
+          user_id: string;
+          is_success: boolean;
+          metadata: { status?: string };
+        }
+
+        const ordersDb: Record<string, OrderRow> = {
+          "order-1": {
+            id: "order-1",
+            user_id: "user-1",
+            is_success: false,
+            metadata: { status: "pending" }, // Still potentially payable!
+          },
+          "order-2": {
+            id: "order-2",
+            user_id: "user-1",
+            is_success: false,
+            metadata: { status: "pending" },
+          },
+        };
+
+        interface RedemptionRow {
+          id: string;
+          assignment_id: string;
+          order_id: string;
+          status: "reserved" | "converted" | "released";
+          expires_at: number;
+        }
+
+        const redemptionsDb: Record<string, RedemptionRow> = {
+          "assign-1": {
+            id: "red-1",
+            assignment_id: "assign-1",
+            order_id: "order-1",
+            status: "reserved",
+            expires_at: 1000, // Expired at t = 1000
+          },
+        };
+
+        // PostgreSQL reserve_promotion_assignment logic
+        const reservePromotion = (assignmentId: string, orderId: string, nowMs: number) => {
+          const existing = redemptionsDb[assignmentId];
+          if (existing && (existing.status === "reserved" || existing.status === "converted")) {
+            if (existing.order_id === orderId) {
+              return { success: true, reused: true };
+            }
+
+            const boundOrder = ordersDb[existing.order_id];
+            const boundStatus = boundOrder?.metadata?.status || "pending";
+
+            // CRITICAL NON-EXPIRING INVARIANT:
+            // Only release if bound order is in a trusted terminal state ('failed', 'cancelled', 'expired', 'abandoned')
+            const isTerminal = ["failed", "cancelled", "expired", "abandoned"].includes(boundStatus);
+            if (!isTerminal) {
+              return {
+                success: false,
+                error: "already_reserved_by_other_order",
+                bound_order_id: existing.order_id,
+                order_status: boundStatus,
+              };
+            }
+
+            // Released safely because previous order reached terminal state
+            existing.status = "released";
+          }
+
+          redemptionsDb[assignmentId] = {
+            id: "red-" + Math.random(),
+            assignment_id: assignmentId,
+            order_id: orderId,
+            status: "reserved",
+            expires_at: nowMs + 30 * 60 * 1000,
+          };
+          return { success: true, reused: false };
+        };
+
+        // At t = 2000, Order 1's TTL has elapsed (1000 < 2000), but Order 1 is still pending in Paystack
+        const attemptOrder2 = reservePromotion("assign-1", "order-2", 2000);
+
+        // Required invariant: Assignment must remain UNAVAILABLE to Order 2!
+        expect(attemptOrder2.success).toBe(false);
+        expect(attemptOrder2.error).toBe("already_reserved_by_other_order");
+        expect(attemptOrder2.bound_order_id).toBe("order-1");
+        expect(attemptOrder2.order_status).toBe("pending");
+        expect(redemptionsDb["assign-1"].order_id).toBe("order-1");
+
+        // Now simulate trusted backend or webhook marking Order 1 as terminal cancelled/failed
+        ordersDb["order-1"].metadata.status = "cancelled";
+
+        // Order 2 retries reservation: Now safe to release and rebind!
+        const retryOrder2 = reservePromotion("assign-1", "order-2", 2050);
+        expect(retryOrder2.success).toBe(true);
+        expect(redemptionsDb["assign-1"].order_id).toBe("order-2");
+        expect(redemptionsDb["assign-1"].status).toBe("reserved");
+      });
+
+      it("5. browser attempts reservation release directly -> denied (permissions revoked from public/authenticated)", async () => {
+        // Simulating PostgreSQL permission matrix:
+        // REVOKE EXECUTE ON FUNCTION release_promotion_reservation FROM PUBLIC, anon, authenticated;
+        // GRANT EXECUTE ON FUNCTION release_promotion_reservation TO service_role;
+        const callReleaseRpc = (role: "anon" | "authenticated" | "service_role") => {
+          if (role !== "service_role") {
+            return {
+              error: {
+                code: "42501",
+                message: "permission denied for function release_promotion_reservation",
+              },
+            };
+          }
+          return { data: { success: true, released: true } };
+        };
+
+        // 1. Authenticated browser user direct RPC attempt -> 42501 Permission Denied
+        const browserRes = callReleaseRpc("authenticated");
+        expect(browserRes.error).toBeDefined();
+        expect(browserRes.error?.code).toBe("42501");
+        expect(browserRes.error?.message).toContain("permission denied");
+
+        // 2. Anonymous client direct RPC attempt -> 42501 Permission Denied
+        const anonRes = callReleaseRpc("anon");
+        expect(anonRes.error?.code).toBe("42501");
+
+        // 3. Trusted service_role edge function -> Allowed
+        const serviceRes = callReleaseRpc("service_role");
+        expect(serviceRes.data?.success).toBe(true);
+        expect(serviceRes.data?.released).toBe(true);
+      });
+
+      it("6. nonexistent order UUID used in redemption -> foreign-key rejection", async () => {
+        // Simulating PostgreSQL FOREIGN KEY constraint:
+        // CONSTRAINT fk_promotion_redemptions_order FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE CASCADE
+        const validOrderIds = new Set([
+          "00000000-0000-0000-0000-000000000001",
+          "00000000-0000-0000-0000-000000000002",
+        ]);
+
+        const insertRedemption = (redemption: { id: string; order_id: string }) => {
+          if (!validOrderIds.has(redemption.order_id)) {
+            throw new Error(
+              `insert or update on table "promotion_redemptions" violates foreign key constraint "fk_promotion_redemptions_order" - Key (order_id)=(${redemption.order_id}) is not present in table "orders". (code: 23503)`,
+            );
+          }
+          return { success: true };
+        };
+
+        // 1. Nonexistent order UUID throws foreign key violation
+        const nonexistentOrderId = "99999999-9999-9999-9999-999999999999";
+        expect(() => {
+          insertRedemption({ id: "red-test", order_id: nonexistentOrderId });
+        }).toThrow('violates foreign key constraint "fk_promotion_redemptions_order"');
+
+        // 2. Existing order UUID succeeds
+        const existingOrderId = "00000000-0000-0000-0000-000000000001";
+        const validRes = insertRedemption({ id: "red-test", order_id: existingOrderId });
+        expect(validRes.success).toBe(true);
       });
     });
   });

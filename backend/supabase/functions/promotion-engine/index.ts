@@ -45,8 +45,8 @@ serve(async (req) => {
     const placement = (body.placement as PromotionPlacement) || "top_banner";
     const now = new Date();
 
-    // ACTION: track-event (impression, clicked, dismissed) - Strictly allowlisted low-trust telemetry
-    if (action === "track-event") {
+    // ACTION: track-event / track_event (impression, clicked, dismissed) - Strictly allowlisted low-trust telemetry
+    if (action === "track-event" || action === "track_event") {
       const eventType = body.eventType as PromotionEventType;
       const ALLOWED_CLIENT_EVENTS: PromotionEventType[] = [
         "impression",
@@ -65,7 +65,49 @@ serve(async (req) => {
       const campaignId = typeof body.campaignId === "string" ? body.campaignId : null;
       const metadata = (body.metadata as Record<string, unknown>) || {};
 
-      // Insert event into promotion_events
+      // Security check: verify assignment ownership if assignmentId is present
+      if (assignmentId) {
+        const { data: assignmentCheck, error: checkError } = await serviceClient
+          .from("promotion_assignments")
+          .select("user_id")
+          .eq("id", assignmentId)
+          .maybeSingle();
+
+        if (checkError || !assignmentCheck || assignmentCheck.user_id !== user.id) {
+          return jsonResponse(
+            { error: "Unauthorized: promotion assignment does not belong to user" },
+            corsHeaders,
+            403,
+          );
+        }
+      }
+
+      // Telemetry deduplication: suppress duplicate impressions within 1 hour per assignment + placement
+      if (eventType === "impression") {
+        const oneHourAgoIso = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+        let query = serviceClient
+          .from("promotion_events")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("event_type", "impression")
+          .eq("placement", placement)
+          .gte("created_at", oneHourAgoIso);
+
+        if (assignmentId) {
+          query = query.eq("assignment_id", assignmentId);
+        }
+
+        const { data: recentImpressions } = await query.limit(1);
+
+        if (recentImpressions && recentImpressions.length > 0) {
+          return jsonResponse(
+            { success: true, deduplicated: true, eventType },
+            corsHeaders,
+          );
+        }
+      }
+
+      // Insert event into promotion_events via service_role
       const { error: insertError } = await serviceClient
         .from("promotion_events")
         .insert({
@@ -122,6 +164,82 @@ serve(async (req) => {
       });
 
       return jsonResponse({ success: true, dismissed: true }, corsHeaders);
+    }
+
+    // ACTION: cancel-checkout / release-reservation (Trusted backend release)
+    if (action === "cancel-checkout" || action === "release-reservation") {
+      const assignmentId = typeof body.assignmentId === "string" ? body.assignmentId : null;
+      const orderId = typeof body.orderId === "string" ? body.orderId : null;
+
+      if (!assignmentId || !orderId) {
+        return jsonResponse(
+          { error: "Missing required parameters: assignmentId and orderId" },
+          corsHeaders,
+          400,
+        );
+      }
+
+      // 1. Verify order existence and user ownership
+      const { data: order, error: orderErr } = await serviceClient
+        .from("orders")
+        .select("id, user_id, is_success, metadata")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (orderErr || !order) {
+        return jsonResponse({ error: "Order not found" }, corsHeaders, 404);
+      }
+
+      if (order.user_id !== user.id) {
+        return jsonResponse({ error: "Unauthorized order access" }, corsHeaders, 403);
+      }
+
+      // 2. Inspect authoritative order state: cannot release if order was successful
+      if (order.is_success) {
+        return jsonResponse(
+          { error: "Cannot release reservation: order has already succeeded" },
+          corsHeaders,
+          400,
+        );
+      }
+
+      // 3. Mark the order as cancelled in public.orders to guarantee it can no longer complete
+      const existingMeta = (order.metadata && typeof order.metadata === "object") ? order.metadata : {};
+      await serviceClient
+        .from("orders")
+        .update({
+          metadata: {
+            ...existingMeta,
+            status: "cancelled",
+            cancelled_at: now.toISOString(),
+            cancelled_by: "user_checkout_cancel",
+          },
+        })
+        .eq("id", orderId);
+
+      // 4. Safely release reservation via service_role RPC
+      const { data: releaseRes, error: releaseErr } = await serviceClient.rpc(
+        "release_promotion_reservation",
+        {
+          p_assignment_id: assignmentId,
+          p_order_id: orderId,
+        },
+      );
+
+      if (releaseErr) {
+        console.error("[promotion-engine] Failed to release promotion reservation:", releaseErr);
+        return jsonResponse({ error: "Failed to release reservation" }, corsHeaders, 500);
+      }
+
+      return jsonResponse(
+        {
+          success: true,
+          released: Boolean(releaseRes?.released),
+          orderId,
+          assignmentId,
+        },
+        corsHeaders,
+      );
     }
 
     // ACTION: evaluate-or-get-active (DEFAULT)

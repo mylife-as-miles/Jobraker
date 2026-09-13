@@ -7,7 +7,7 @@ import {
   type SharedCreditPackDefinition,
   type SharedSubscriptionPlanDefinition,
   type SharedSubscriptionTier,
-} from "../../backend/supabase/shared/billing-catalog.ts";
+} from "../../backend/supabase/shared/billing-catalog";
 
 export type BillingSubscriptionTier = SharedSubscriptionTier;
 export type BillingPlanDefinition = SharedSubscriptionPlanDefinition;
@@ -18,3 +18,10 @@ export const BILLING_PLAN_DEFINITIONS = SHARED_SUBSCRIPTION_PLANS;
 export const BILLING_CREDIT_PACK_DEFINITIONS = SHARED_CREDIT_PACKS;
 export const BILLING_CONCURRENCY_PACK_DEFINITIONS = SHARED_CONCURRENCY_PACKS;
 export const DEFAULT_NGN_PER_USD = DEFAULT_PAYSTACK_USD_TO_NGN_RATE;
+
+export {
+  SHARED_SUBSCRIPTION_PLANS,
+  SHARED_CREDIT_PACKS,
+  SHARED_CONCURRENCY_PACKS,
+  DEFAULT_PAYSTACK_USD_TO_NGN_RATE,
+};
