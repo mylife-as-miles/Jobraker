@@ -263,7 +263,7 @@ const extractJobDataWithGemini = async (
   url: string,
   markdown: string,
   metadata: Record<string, unknown>,
-  fallback: ExtractedPostingData,
+  _initialFallback: ExtractedPostingData,
   userId?: string,
 ): Promise<ExtractedPostingData> => {
   const { title: fallbackTitle, company: fallbackCompany } = deriveTitleAndCompany(

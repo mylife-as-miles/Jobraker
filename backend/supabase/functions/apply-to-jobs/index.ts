@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getCorsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
@@ -472,10 +472,10 @@ function extractJobContext(body: any) {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
@@ -1148,8 +1148,6 @@ Deno.serve(async (req) => {
       hardBlockers: authoritativeHardBlockers,
       saveAsDraftOnly: body?.save_as_draft_only === true || body?.saveAsDraftOnly === true,
     });
-    const effectiveAutoSubmit = policyValidation.effectiveAutoSubmit;
-    const effectiveSubmissionMode = policyValidation.effectiveSubmissionMode;
 
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
