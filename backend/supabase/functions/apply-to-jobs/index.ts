@@ -23,6 +23,7 @@ import {
   type ApplicationReasonCode,
   evaluatePackageReadiness,
 } from "../../shared/application-package.ts";
+const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 const DEFAULT_RTRVR_TIMEOUT_MS = 300_000;
 
@@ -488,18 +489,19 @@ Deno.serve(async (req) => {
   let billingForResponse: Record<string, unknown> | null = null;
   let agentRunId: string | null = null;
   let applicationEnqueued = false;
+  let serviceClient: any = null;
+  let user: any = null;
 
   try {
     const body = await req.json().catch(() => ({}));
     
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\\s+/i, "").trim();
+    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const isSystemTrigger = token && serviceRoleKey && token === serviceRoleKey;
 
     let userId: string;
     let subscriptionTier: string;
-    let serviceClient: any;
     let email = "";
 
     if (isSystemTrigger) {
@@ -525,6 +527,7 @@ Deno.serve(async (req) => {
       email = typeof body?.email === "string" && body.email.trim() ? body.email.trim() : (userProfile?.email || "");
     } else {
       const authCtx = await requireSubscriptionTier(req, "Free", "Auto apply");
+      user = authCtx.user;
       userId = authCtx.user.id;
       subscriptionTier = authCtx.subscriptionTier;
       serviceClient = authCtx.serviceClient;
@@ -1419,6 +1422,15 @@ Deno.serve(async (req) => {
       rtrvr: rtrvrStartInput,
     };
 
+    const data = {
+      provider: "rtrvr",
+      status: "waiting",
+      run_id: null,
+      requested_mode: requestedBrowserPreference,
+      selected_mode: null,
+      fallback_applied: false,
+    };
+
     const applicationPayload = {
       id: applicationId,
       run_id: null,
@@ -1660,7 +1672,7 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("apply-to-jobs error", message);
-    if (agentRunId && !applicationEnqueued) {
+    if (serviceClient && agentRunId && !applicationEnqueued) {
       try {
         await serviceClient.rpc("settle_run_credits", {
           p_agent_run_id: agentRunId,
