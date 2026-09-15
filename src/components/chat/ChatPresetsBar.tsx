@@ -46,9 +46,14 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
         aria-label="Quick presets"
       >
         <div className="px-2 pb-2 pt-1">
-          <p className="text-xs font-semibold text-foreground">Quick presets</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">Outreach Agent</p>
+            <span className="text-[10px] font-semibold text-brand bg-brand/10 px-1.5 py-0.5 rounded">
+              Recommended
+            </span>
+          </div>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Start a guided action without writing a prompt.
+            Targeted decision-maker outreach and follow-ups.
           </p>
         </div>
 
@@ -56,6 +61,12 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
         {recipes.map((recipe: ActionRecipe) => {
           const isActive = activeRecipeId === recipe.id;
           const isPrimary = recipe.id === "recruiter_cold_outreach";
+          const archetypeLabel =
+            recipe.id === "recruiter_cold_outreach"
+              ? "Recruiter Intro"
+              : recipe.id === "instant_job_pitch"
+                ? "Hiring Manager Pitch"
+                : "Application Follow-Up";
 
           return (
             <DropdownMenuItem
@@ -84,17 +95,15 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <span className="truncate text-xs font-semibold text-foreground group-focus:text-brand">
-                    {recipe.title}
+                    {archetypeLabel}
                   </span>
-                  {recipe.badge && (
-                    <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                      isPrimary
-                        ? "border-brand/30 bg-brand/15 text-brand"
-                        : "border-border bg-muted text-muted-foreground"
-                    }`}>
-                      {recipe.badge}
-                    </span>
-                  )}
+                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                    isPrimary
+                      ? "border-brand/30 bg-brand/15 text-brand"
+                      : "border-border bg-muted text-muted-foreground"
+                  }`}>
+                    {recipe.badge || "Preset"}
+                  </span>
                 </span>
                 <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
                   {recipe.tagline}

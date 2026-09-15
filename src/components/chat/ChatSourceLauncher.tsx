@@ -19,7 +19,7 @@ type Props = {
   skills: ChatSourceLauncherSkill[];
   triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
-  onUpload: () => void;
+  onUpload?: () => void;
   onSkillSelect?: (skillId: string) => void;
   onSelectPreset?: (presetId: string) => void;
 };

@@ -27,6 +27,7 @@ import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
 import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
 import { isInvalidOutreachJob } from "@/services/presets/recruiterOutreachService";
+import { evaluateFollowUpEligibility } from "@/lib/outreach/followUpRules";
 import type { ColdMailQuota } from "@/lib/chatSkills/types";
 
 export interface PresetJobItem {
@@ -38,6 +39,8 @@ export interface PresetJobItem {
   location?: string;
   appliedDate?: string;
   selected: boolean;
+  followUpEligible?: boolean;
+  followUpReason?: string;
 }
 
 interface RecruiterOutreachPresetModalProps {
@@ -177,35 +180,53 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
         const isFollowup = recipeId === "followup_bump";
         const limit = activeRecipe.defaultJobLimit || 3;
 
-        const seenCompanies = new Set<string>();
+        const seenJobKeys = new Set<string>();
         const mappedSearched: PresetJobItem[] = [];
 
         (jobs || []).forEach((j) => {
           if (isInvalidOutreachJob(j.company, j.title)) return;
-          const norm = (j.company || "").toLowerCase().trim();
-          if (!norm || seenCompanies.has(norm)) return;
-          seenCompanies.add(norm);
+          const key = j.id || `${(j.company || "").toLowerCase()}-${(j.title || "").toLowerCase()}`;
+          if (seenJobKeys.has(key)) return;
+          seenJobKeys.add(key);
+
+          const authenticScore = typeof j.lead_quality_score === "number" && j.lead_quality_score > 0
+            ? Math.round(j.lead_quality_score)
+            : undefined;
+
           mappedSearched.push({
             id: j.id,
             company: j.company,
             title: j.title || "Target Position",
             source: "searched",
-            matchScore: j.lead_quality_score ? Math.min(99, Math.max(65, j.lead_quality_score)) : 88,
+            matchScore: authenticScore,
             location: j.location || "Remote / Hybrid",
             selected: !isFollowup && mappedSearched.length < limit,
           });
         });
 
-        const mappedApplied: PresetJobItem[] = (apps || []).map((a, index) => ({
-          id: a.id,
-          company: a.company,
-          title: a.job_title || "Target Position",
-          source: "applied",
-          matchScore: a.match_score || 85,
-          location: a.location || "Remote",
-          appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : undefined,
-          selected: isFollowup && index < limit,
-        }));
+        const mappedApplied: PresetJobItem[] = (apps || []).map((a, index) => {
+          const authenticAppScore = typeof a.match_score === "number" && a.match_score > 0
+            ? Math.round(a.match_score)
+            : undefined;
+
+          const followUpEval = evaluateFollowUpEligibility({
+            applied_date: a.applied_date,
+            status: a.status,
+          });
+
+          return {
+            id: a.id,
+            company: a.company,
+            title: a.job_title || "Target Position",
+            source: "applied",
+            matchScore: authenticAppScore,
+            location: a.location || "Remote",
+            appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : undefined,
+            followUpEligible: followUpEval.eligible,
+            followUpReason: followUpEval.reason,
+            selected: isFollowup ? followUpEval.eligible && index < limit : false,
+          };
+        });
 
         setSearchedJobs(mappedSearched);
         setAppliedJobs(mappedApplied);
@@ -486,7 +507,7 @@ ${jobLines}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Briefcase className="size-3.5 text-brand" />
-                {isColdMailPreset ? "Selected Target (1):" : `Selected Roles (${selectedJobs.length}):`}
+                {isColdMailPreset ? "Choose an opportunity (1):" : `Selected Roles (${selectedJobs.length}):`}
               </span>
               {isColdMailPreset && coldMailQuota ? (
                 <span className="text-[11px] text-muted-foreground">
@@ -702,9 +723,24 @@ ${jobLines}
                           <span className="text-xs font-semibold text-foreground truncate">
                             {job.company}
                           </span>
-                          {job.matchScore && (
+                          {job.matchScore ? (
                             <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted font-bold text-muted-foreground">
                               {job.matchScore}%
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted/40 font-normal text-muted-foreground/70">
+                              Not evaluated
+                            </span>
+                          )}
+                          {job.source === "applied" && job.followUpEligible !== undefined && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                                job.followUpEligible
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              }`}
+                            >
+                              {job.followUpEligible ? "Ready for follow-up" : (job.followUpReason || "Wait for follow-up")}
                             </span>
                           )}
                         </div>

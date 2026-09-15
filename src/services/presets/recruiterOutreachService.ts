@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { loadStructuredCandidateEvidence } from "@/lib/outreach/candidateEvidence";
+import type { CandidateEvidenceItem } from "@/lib/outreach/types";
+
 export interface TargetOutreachJob {
   id: string;
   jobId: string | null;
@@ -34,6 +37,8 @@ export interface CraftedOutreachPitch {
   tone: OutreachTone;
   previewHook: string;
   customized?: boolean;
+  needsRegeneration?: boolean;
+  evidenceItems?: CandidateEvidenceItem[];
 }
 
 export interface DeliveryResult {
@@ -110,81 +115,23 @@ export function isInvalidOutreachJob(company?: string, title?: string): boolean 
 
 /**
  * Loads candidate evidence from resumes or profile data.
+ * Fails closed without fabricating false text.
  */
 export async function loadCandidateEvidence(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<string> {
-  try {
-    const { data: favoriteResume } = await supabase
-      .from("resumes")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("is_favorite", true)
-      .maybeSingle();
-
-    let resumeId = favoriteResume?.id;
-    if (!resumeId) {
-      const { data: latestResume } = await supabase
-        .from("resumes")
-        .select("id")
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      resumeId = latestResume?.id;
-    }
-
-    if (resumeId) {
-      const { data: parsed } = await supabase
-        .from("parsed_resumes")
-        .select("raw_text")
-        .eq("resume_id", resumeId)
-        .order("extracted_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (parsed?.raw_text && parsed.raw_text.trim().length > 20) {
-        return parsed.raw_text.trim();
-      }
-    }
-
-    // Fallback to profile
-    const [profileRes, expRes, skillsRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase
-        .from("profile_experiences")
-        .select("title, company, description")
-        .eq("user_id", userId)
-        .limit(3),
-      supabase.from("profile_skills").select("name").eq("user_id", userId).limit(8),
-    ]);
-
-    const profile = profileRes.data || {};
-    const experiences = Array.isArray(expRes.data) ? expRes.data : [];
-    const skills = Array.isArray(skillsRes.data) ? skillsRes.data : [];
-
-    const lines = [
-      `Name: ${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
-      profile.job_title ? `Title: ${profile.job_title}` : "",
-      experiences.length > 0
-        ? "Key Experience:\n" +
-          experiences
-            .map((e) => `- ${e.title} at ${e.company}: ${e.description || ""}`)
-            .join("\n")
-        : "",
-      skills.length > 0 ? `Skills: ${skills.map((s) => s.name).join(", ")}` : "",
-    ].filter(Boolean);
-
-    return lines.join("\n") || "Experienced professional seeking new challenge.";
-  } catch (error) {
-    console.warn("Failed to load candidate evidence, using standard fallback", error);
-    return "Experienced professional seeking new challenge.";
+  const result = await loadStructuredCandidateEvidence(supabase, userId);
+  if (result.status === "needs_candidate_evidence" || !result.rawText) {
+    return "";
   }
+  return result.rawText;
 }
 
 /**
  * Automatically fetches candidate's top uncontacted jobs from searched and tracked jobs.
+ * Enforces exact job identity: multiple opportunities at the same company remain distinct.
+ * Never fabricates match percentages (leaves undefined if unrated).
  */
 export async function fetchTopUncontactedJobs(
   supabase: SupabaseClient,
@@ -192,18 +139,16 @@ export async function fetchTopUncontactedJobs(
   limit: number = 5,
 ): Promise<TargetOutreachJob[]> {
   try {
-    // 1. Fetch tracked applications to identify already-contacted companies/jobs
+    // 1. Fetch tracked applications to identify already-contacted jobs
     const { data: applications } = await supabase
       .from("applications")
-      .select("id, job_id, company, job_title, status, draft_status")
+      .select("id, job_id, company, job_title, status, draft_status, match_score")
       .eq("user_id", userId);
 
-    const contactedCompanySet = new Set<string>();
     const contactedJobIdSet = new Set<string>();
 
     (applications || []).forEach((app) => {
       if (app.status === "Applied" || app.status === "Interviewing" || app.draft_status === "draft") {
-        if (app.company) contactedCompanySet.add(app.company.toLowerCase().trim());
         if (app.job_id) contactedJobIdSet.add(app.job_id);
       }
     });
@@ -223,15 +168,21 @@ export async function fetchTopUncontactedJobs(
     }
 
     const availableJobs: TargetOutreachJob[] = [];
-    const seenCompanies = new Set<string>();
+    const seenJobKeys = new Set<string>();
 
     for (const job of jobs || []) {
-      const companyNorm = (job.company || "").toLowerCase().trim();
-      if (!companyNorm || seenCompanies.has(companyNorm)) continue;
-      if (contactedCompanySet.has(companyNorm) || contactedJobIdSet.has(job.id)) continue;
+      const jobKey = job.id || (job.apply_url ? job.apply_url.toLowerCase().trim() : `${(job.company || "").toLowerCase()}-${(job.title || "").toLowerCase()}`);
+      if (!jobKey || seenJobKeys.has(jobKey)) continue;
+      if (contactedJobIdSet.has(job.id)) continue;
       if (isInvalidOutreachJob(job.company, job.title)) continue;
 
-      seenCompanies.add(companyNorm);
+      seenJobKeys.add(jobKey);
+
+      // Only assign matchScore if an authentic evaluation exists; do not fabricate 88%
+      const authenticScore = typeof job.lead_quality_score === "number" && job.lead_quality_score > 0
+        ? Math.round(job.lead_quality_score)
+        : undefined;
+
       availableJobs.push({
         id: job.id,
         jobId: job.id,
@@ -239,7 +190,7 @@ export async function fetchTopUncontactedJobs(
         company: job.company || "Target Company",
         location: job.location || "Remote / Hybrid",
         logo: job.company_logo || undefined,
-        matchScore: job.lead_quality_score ? Math.min(99, Math.max(65, job.lead_quality_score)) : 88,
+        matchScore: authenticScore,
         applyUrl: job.apply_url || undefined,
         source: "searched",
         description: job.description || undefined,
@@ -249,21 +200,26 @@ export async function fetchTopUncontactedJobs(
       if (availableJobs.length >= limit) break;
     }
 
-    // 3. If fewer than limit, also include saved/pending applications that haven't been contacted yet
+    // 3. If fewer than limit, also include saved/wishlist applications that haven't been contacted yet
     if (availableJobs.length < limit && applications && applications.length > 0) {
       for (const app of applications) {
-        const companyNorm = (app.company || "").toLowerCase().trim();
-        if (!companyNorm || seenCompanies.has(companyNorm)) continue;
+        const appKey = app.id || (app.job_id ? app.job_id : `${(app.company || "").toLowerCase()}-${(app.job_title || "").toLowerCase()}`);
+        if (!appKey || seenJobKeys.has(appKey)) continue;
         if (app.status !== "Wishlist" && app.status !== "Saved") continue;
 
-        seenCompanies.add(companyNorm);
+        seenJobKeys.add(appKey);
+
+        const authenticAppScore = typeof (app as any).match_score === "number" && (app as any).match_score > 0
+          ? Math.round((app as any).match_score)
+          : undefined;
+
         availableJobs.push({
           id: app.id,
           jobId: app.job_id || null,
           title: app.job_title || "Target Position",
           company: app.company,
           location: "Remote",
-          matchScore: 85,
+          matchScore: authenticAppScore,
           source: "applied",
         });
 
@@ -452,7 +408,7 @@ function extractPreviewHook(body: string): string {
   return hookLine.length > 110 ? hookLine.slice(0, 105) + "..." : hookLine;
 }
 
-function generateLocalFallbackPitch(
+export function generateLocalFallbackPitch(
   job: TargetOutreachJob,
   contact: RecruiterContactInfo,
   tone: OutreachTone,
@@ -467,13 +423,13 @@ function generateLocalFallbackPitch(
 
   if (tone === "punchy") {
     subject = `${job.title} @ ${job.company}`;
-    body = `Hi ${recipientName},\n\nI noticed ${job.company}'s opening for ${job.title}. With a strong background executing high-impact technical initiatives, I'm confident I can make an immediate contribution to your team.\n\nWould you be open to a brief 10-minute chat this week?\n\nBest,\nJobRaker Candidate`;
+    body = `Hi ${recipientName},\n\nI noticed ${job.company}'s opening for ${job.title}. Given my relevant experience and strong interest in your team, I would welcome the opportunity to connect.\n\nWould you be open to a brief conversation this week?\n\nBest,\nJobRaker Candidate`;
   } else if (tone === "bold") {
     subject = `Driving Impact for ${job.title} - ${job.company}`;
-    body = `Hi ${recipientName},\n\nI've been following ${job.company}'s trajectory and noticed the ${job.title} position. My experience aligns directly with solving the complex scaling and delivery challenges your team faces.\n\nI would love to connect and share high-leverage ideas on how I can help hit your quarterly goals.\n\nBest regards,\nJobRaker Candidate`;
+    body = `Hi ${recipientName},\n\nI saw the ${job.title} position at ${job.company}. My background aligns directly with the core requirements of this role, and I would love to connect to discuss team priorities.\n\nBest regards,\nJobRaker Candidate`;
   } else {
     subject = `Quick note regarding ${job.title} at ${job.company}`;
-    body = `Hi ${recipientName},\n\nHope your week is going well! I came across the ${job.title} role at ${job.company} and was genuinely excited by what you're building.\n\nGiven my background in high-velocity execution and collaborative problem-solving, I'd love to learn more about the team's upcoming priorities.\n\nHappy to share more context if you're open to connecting!\n\nBest,\nJobRaker Candidate`;
+    body = `Hi ${recipientName},\n\nI came across the ${job.title} role at ${job.company} and wanted to reach out directly. I would love to learn more about the team's upcoming priorities and share relevant background.\n\nBest,\nJobRaker Candidate`;
   }
 
   return {
@@ -482,6 +438,7 @@ function generateLocalFallbackPitch(
     tone,
     previewHook: extractPreviewHook(body),
     customized: false,
+    needsRegeneration: true,
   };
 }
 
