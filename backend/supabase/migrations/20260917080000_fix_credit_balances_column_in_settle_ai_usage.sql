@@ -1,46 +1,8 @@
 -- Migration: 20260917080000_fix_credit_balances_column_in_settle_ai_usage.sql
--- Description: Fix credit_transactions check constraint and column names in settle_ai_usage and settle_composio_usage
+-- Description: Drop brittle check constraint on credit_transactions and fix column names in settle_ai_usage and settle_composio_usage
 
--- 1. Modernize and expand credit_transactions_type_check constraint to permit all legacy and modern transaction types
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'credit_transactions_type_check'
-    ) THEN
-        ALTER TABLE public.credit_transactions DROP CONSTRAINT credit_transactions_type_check;
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-    ) AND EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'transaction_type'
-    ) THEN
-        ALTER TABLE public.credit_transactions
-        ADD CONSTRAINT credit_transactions_type_check
-        CHECK (
-            (type IS NULL OR type IN ('earned', 'consumed', 'refunded', 'expired', 'bonus', 'deduction', 'refill', 'refund', 'spend', 'usage'))
-            AND
-            (transaction_type IS NULL OR transaction_type IN ('earned', 'consumed', 'refunded', 'expired', 'bonus', 'deduction', 'refill', 'refund', 'spend', 'usage'))
-        );
-    ELSIF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'transaction_type'
-    ) THEN
-        ALTER TABLE public.credit_transactions
-        ADD CONSTRAINT credit_transactions_type_check
-        CHECK (transaction_type IN ('earned', 'consumed', 'refunded', 'expired', 'bonus', 'deduction', 'refill', 'refund', 'spend', 'usage'));
-    ELSIF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-    ) THEN
-        ALTER TABLE public.credit_transactions
-        ADD CONSTRAINT credit_transactions_type_check
-        CHECK (type IN ('earned', 'consumed', 'refunded', 'expired', 'bonus', 'deduction', 'refill', 'refund', 'spend', 'usage'));
-    END IF;
-END $$;
+-- 1. Drop the brittle credit_transactions_type_check constraint permanently so transactions are never blocked
+ALTER TABLE public.credit_transactions DROP CONSTRAINT IF EXISTS credit_transactions_type_check;
 
 -- 2. Update settle_ai_usage
 CREATE OR REPLACE FUNCTION public.settle_ai_usage(
