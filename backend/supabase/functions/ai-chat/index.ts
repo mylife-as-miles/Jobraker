@@ -249,6 +249,7 @@ type AgentApprovalStep = {
   title: string;
   detail: string;
   kind: AgentApprovalStepKind;
+  args?: Record<string, unknown>;
 };
 
 function stableApprovalValue(value: unknown): string {
@@ -2519,6 +2520,15 @@ Document Generation & Executive Artifacts (1-Pagers, Strategy Sheets, Interview 
    - Mention to the user at the end of your response that they can download this document as a beautifully formatted, print-ready PDF using the "Download PDF" button right below your answer.
 `;
 
+const ACTION_APPROVAL_EXECUTION_RULES = `
+Action Approval & Continuation Rules:
+- When the user's latest input is an approval (e.g., "Approved. Continue with the approved actions", "Yes, proceed", "Go ahead", or confirming a plan such as creating Gmail drafts or submitting applications):
+  1. DO NOT call run_job_search or search_public_job_sources. The search phase is already complete.
+  2. DO NOT call googleSearch or search external boards.
+  3. Execute the approved actions (such as create_gmail_job_draft, send_gmail_job_email, apply_to_job) or report the results of the completed actions.
+  4. Summarize what was accomplished clearly and inform the user of the next steps.
+`;
+
 const createAuthedSupabaseClient = (authHeader: string) =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     auth: { persistSession: false },
@@ -4389,6 +4399,11 @@ Deno.serve(async (req) => {
       approved_tool_calls: approvedToolCallsInput = [],
     } = body;
     const approvedToolCallKeys = new Set<string>();
+    const executableApprovedToolCalls: Array<{
+      toolName: string;
+      args: Record<string, unknown>;
+      approvalKey: string;
+    }> = [];
     if (Array.isArray(approvedToolCallsInput)) {
       for (const entry of approvedToolCallsInput) {
         if (isRecord(entry)) {
@@ -4398,6 +4413,15 @@ Deno.serve(async (req) => {
           if (slug) approvedToolCallKeys.add(slug.toUpperCase().replace(/[^A-Z0-9_]/g, ""));
           const name = asString(entry.tool_name) || asString(entry.toolName);
           if (name) approvedToolCallKeys.add(name);
+
+          const entryArgs = isRecord(entry.args) ? (entry.args as Record<string, unknown>) : null;
+          if (name && entryArgs && Object.keys(entryArgs).length > 0) {
+            executableApprovedToolCalls.push({
+              toolName: name,
+              args: entryArgs,
+              approvalKey: key || `${name}:${stableApprovalValue(entryArgs)}`,
+            });
+          }
         }
       }
     }
@@ -5040,7 +5064,7 @@ Evidence and failure reporting:
 - Never claim that a task, upload, submission, or browser action succeeded until the relevant tool returns a successful result and confirms the outcome.
 - Keep failure messages brief and practical. Do not expose internal implementation names, speculative recovery attempts, or a list of imagined options.`;
       systemInstruction =
-        `You are JobRaker Agent, a career automation engine. Execute requested career tasks using the available tools. The system pauses for a user-facing approval card only before a genuinely irreversible action: submitting an application, drafting or sending mail, deleting data, acting on a page through the browser tool, or writing to a connected integration. Reading, searching, summarizing and other reversible steps run without asking, however many are needed. Never ask the user to approve a plan, and never narrate a plan back for sign-off before doing reversible work — just do it and report the result. Never claim a paused or proposed action has happened. Do not expose private reasoning; state only a concise, user-facing result.\nAfter every completed batch of tool calls, reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
+        `You are JobRaker Agent, a career automation engine. Execute requested career tasks using the available tools. The system pauses for a user-facing approval card only before a genuinely irreversible action: submitting an application, drafting or sending mail, deleting data, acting on a page through the browser tool, or writing to a connected integration. Reading, searching, summarizing and other reversible steps run without asking, however many are needed. Never ask the user to approve a plan, and never narrate a plan back for sign-off before doing reversible work — just do it and report the result. Never claim a paused or proposed action has happened. Do not expose private reasoning; state only a concise, user-facing result.\nAfter every completed batch of tool calls, reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${DOCUMENT_GENERATION_AND_PDF_RULES.trim()}\n\n${ACTION_APPROVAL_EXECUTION_RULES.trim()}\n\n${systemInstruction}`;
     }
 
     systemInstruction = `${systemInstruction}${FOLLOW_UP_GENERATION_RULES}`;
@@ -5136,41 +5160,76 @@ Evidence and failure reporting:
               round: 0,
             });
             let activeModel = fallbackModels[0];
-            let chat = genAI.chats.create({
-              model: activeModel,
-              config: chatConfig,
-              history,
-            });
+            let chat: any;
             /** Max tool *rounds* (each round may include multiple parallel function calls). */
             const MAX_AGENT_TOOL_ROUNDS = 50;
 
             let response: any;
-            // Try primary model, fall back on rate limit
-            for (let mi = 0; mi < fallbackModels.length; mi++) {
-              activeModel = fallbackModels[mi];
-              try {
-                if (mi > 0) {
-                  // Recreate chat with fallback model
-                  console.warn(`[ai-chat] Falling back to ${activeModel}`);
-                  chat = genAI.chats.create({
-                    model: activeModel,
-                    config: chatConfig,
-                    history,
+            if (executableApprovedToolCalls.length > 0) {
+              // The user approved a specific plan of actions (e.g. Gmail drafts, application submissions).
+              // Append user message + model function call turn directly into Gemini history
+              // so Gemini's chat session knows the exact tool calls being executed.
+              const synthesizedParts = executableApprovedToolCalls.map((entry) => ({
+                functionCall: {
+                  name: entry.toolName,
+                  args: entry.args,
+                },
+              }));
+              history.push({
+                role: "user",
+                parts: lastUserParts,
+              });
+              history.push({
+                role: "model",
+                parts: synthesizedParts,
+              });
+              chat = genAI.chats.create({
+                model: activeModel,
+                config: chatConfig,
+                history,
+              });
+              response = {
+                candidates: [
+                  {
+                    content: {
+                      parts: synthesizedParts,
+                    },
+                  },
+                ],
+              };
+            } else {
+              chat = genAI.chats.create({
+                model: activeModel,
+                config: chatConfig,
+                history,
+              });
+              // Try primary model, fall back on rate limit
+              for (let mi = 0; mi < fallbackModels.length; mi++) {
+                activeModel = fallbackModels[mi];
+                try {
+                  if (mi > 0) {
+                    // Recreate chat with fallback model
+                    console.warn(`[ai-chat] Falling back to ${activeModel}`);
+                    chat = genAI.chats.create({
+                      model: activeModel,
+                      config: chatConfig,
+                      history,
+                    });
+                  }
+                  response = await streamAgentModelStep({
+                    chat,
+                    message: lastUserParts,
+                    round: 0,
+                    enqueueEvent,
+                    userId,
+                    serviceClient,
+                    followUpStream,
                   });
-                }
-                response = await streamAgentModelStep({
-                  chat,
-                  message: lastUserParts,
-                  round: 0,
-                  enqueueEvent,
-                  userId,
-                  serviceClient,
-                  followUpStream,
-                });
-                break; // success — stop trying models
-              } catch (e) {
-                if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
-                  throw e; // non-rate-limit or last fallback exhausted
+                  break; // success — stop trying models
+                } catch (e) {
+                  if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
+                    throw e; // non-rate-limit or last fallback exhausted
+                  }
                 }
               }
             }
@@ -5264,6 +5323,7 @@ Evidence and failure reporting:
                 pendingApprovalSteps.push({
                   approvalKey,
                   ...describeAgentApprovalStep(fn.name, args, toolCharge),
+                  args,
                 });
               }
 

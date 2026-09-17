@@ -336,6 +336,7 @@ type ChatRequestOptions = {
   system?: string;
   mode?: ChatMode;
   approvedToolCalls?: ApprovedToolCall[];
+  baseMessages?: BasicMessage[];
   /**
    * Resume the current turn without showing another user bubble. Approving an
    * action continues the same conversation; it is not a new request.
@@ -567,6 +568,10 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
                     step.kind === "credits"
                       ? step.kind
                       : "plan",
+                  args:
+                    step.args && typeof step.args === "object"
+                      ? step.args
+                      : undefined,
                 }))
             : [],
           createdAt:
@@ -588,6 +593,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
       ? message.role
       : "user",
   content: cleanContent,
+  hiddenFromUi: Boolean(message?.hiddenFromUi),
   parts:
     legacyQueuedAssistant
       ? [{ type: "text" as const, text: legacyQueueMessage }]
@@ -1712,7 +1718,18 @@ const buildChatRequestMessages = (
         };
       }
 
-      const content = msg.content.trim();
+      let content = msg.content.trim();
+      if (msg.role === "assistant" && msg.approvalRequest?.steps?.length) {
+        const stepLines = msg.approvalRequest.steps
+          .map((s, i) => `${i + 1}. ${s.title}${s.detail ? `: ${s.detail}` : ""}`)
+          .join("\n");
+        if (!content.includes(msg.approvalRequest.steps[0].title)) {
+          content = content
+            ? `${content}\n\nProposed actions:\n${stepLines}`
+            : `Proposed actions:\n${stepLines}`;
+        }
+      }
+
       if (!content && !(isLast && msg.role === "user" && currentPayload.images?.length)) {
         return null;
       }
@@ -1813,11 +1830,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         );
       }
 
-      const history = [...baseMessages, userMessage];
+      const effectiveBaseMessages = chatOpts?.baseMessages || baseMessages;
+      const history = [...effectiveBaseMessages, userMessage];
       lastTurnRef.current = {
         message: m,
         chatOpts,
-        historyBeforeUser: baseMessages,
+        historyBeforeUser: effectiveBaseMessages,
       };
       setMessages(history);
       setStatus("in_progress");
@@ -1880,8 +1898,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
             previous_response_id: previousResponseId ?? responseId,
-            approved_tool_calls: chatOpts?.approvedToolCalls?.map(({ approvalKey }) => ({
-              approval_key: approvalKey,
+            approved_tool_calls: chatOpts?.approvedToolCalls?.map((entry) => ({
+              approval_key: entry.approvalKey,
+              tool_name: entry.toolName,
+              tool_slug: entry.toolSlug,
+              args: entry.args,
             })),
           }),
           signal: abortControllerRef.current.signal,
@@ -2078,6 +2099,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                           step.kind === "credits"
                             ? step.kind
                             : "plan",
+                        args:
+                          step.args && typeof step.args === "object"
+                            ? step.args
+                            : undefined,
                       }))
                   : [],
                 createdAt:
@@ -2331,7 +2356,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 
   const append = useCallback(
     (m: ChatUserPayload, chatOpts?: ChatRequestOptions) => {
-      void sendMessage(messages, m, chatOpts, responseId);
+      const base = chatOpts?.baseMessages || messages;
+      void sendMessage(base, m, chatOpts, responseId);
     },
     [messages, responseId, sendMessage],
   );
@@ -2878,7 +2904,6 @@ export const ChatPage = () => {
   const handleApprovalApprove = useCallback(
     (request: AgentApprovalRequest) => {
       if (isChatBusy || request.steps.length === 0) return;
-      updateApprovalDecision(request.id, "approved");
 
       // Approvals accumulate for the whole conversation. Sending only the keys
       // from this one card meant a later round re-asked for an action the user
@@ -2894,28 +2919,50 @@ export const ChatPage = () => {
         }
       }
 
+      // Immutably update messages state so the card turns into "Plan approved" immediately
+      // and cannot be overwritten by stale state closure
+      const nextMessages = messages.map((message) =>
+        message.approvalRequest?.id === request.id
+          ? {
+              ...message,
+              approvalRequest: {
+                ...message.approvalRequest,
+                decision: "approved" as const,
+              },
+            }
+          : message,
+      );
+      setMessages(nextMessages);
+
+      const stepsSummary = request.steps
+        .map((s, idx) => `${idx + 1}. ${s.title}${s.detail ? `: ${s.detail}` : ""}`)
+        .join("\n");
+
+      // Auto-scroll so the user immediately follows the executing actions
+      scrollToBottom();
+
       append(
         {
           role: "user",
-          content: "Approved. Continue with the approved actions.",
+          content: `Approved. Continue with the approved actions:\n${stepsSummary}`,
         },
         {
           model: DEFAULT_CHAT_MODEL,
           mode: "agent",
-          webSearch: true,
+          webSearch: false, // Turn off search: this is action execution, NOT web search
           // Resume the same turn instead of posting a visible new request.
           hiddenUserMessage: true,
-          approvedToolCalls: Array.from(approvedToolCallKeysRef.current).map(
-            (key) => ({
-              approvalKey: key,
-              toolName: key,
-              toolSlug: key,
-            }),
-          ),
+          baseMessages: nextMessages,
+          approvedToolCalls: request.steps.map((step) => ({
+            approvalKey: step.approvalKey,
+            toolName: step.toolName,
+            toolSlug: step.toolName,
+            args: step.args,
+          })),
         },
       );
     },
-    [append, isChatBusy, updateApprovalDecision],
+    [append, isChatBusy, messages, setMessages, scrollToBottom],
   );
 
   const handleApprovalAdjust = useCallback(
@@ -3578,12 +3625,26 @@ export const ChatPage = () => {
     const isApprovalIntent =
       /^(approved|approve|yes|continue|proceed|confirm|go ahead)/i.test(userTextTrimmed);
 
+    let effectiveMessages = currentMessages;
+    let pendingStepsToExecute: AgentApprovalStep[] = [];
     if (isApprovalIntent) {
       const lastPendingApproval = [...currentMessages]
         .reverse()
         .find((m) => m.approvalRequest && !m.approvalRequest.decision);
       if (lastPendingApproval?.approvalRequest) {
-        updateApprovalDecision(lastPendingApproval.approvalRequest.id, "approved");
+        pendingStepsToExecute = lastPendingApproval.approvalRequest.steps;
+        effectiveMessages = currentMessages.map((m) =>
+          m.approvalRequest?.id === lastPendingApproval.approvalRequest!.id
+            ? {
+                ...m,
+                approvalRequest: {
+                  ...m.approvalRequest,
+                  decision: "approved" as const,
+                },
+              }
+            : m,
+        );
+        setMessages(effectiveMessages);
         for (const step of lastPendingApproval.approvalRequest.steps) {
           approvedToolCallKeysRef.current.add(step.approvalKey);
           if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
@@ -3598,7 +3659,14 @@ export const ChatPage = () => {
     }
 
     const approvedToolCalls =
-      approvedToolCallKeysRef.current.size > 0
+      pendingStepsToExecute.length > 0
+        ? pendingStepsToExecute.map((step) => ({
+            approvalKey: step.approvalKey,
+            toolName: step.toolName,
+            toolSlug: step.toolName,
+            args: step.args,
+          }))
+        : approvedToolCallKeysRef.current.size > 0
         ? Array.from(approvedToolCallKeysRef.current).map((key) => ({
             approvalKey: key,
             toolName: key,
@@ -3614,10 +3682,11 @@ export const ChatPage = () => {
       },
       {
         model,
-        webSearch: mode === "agent",
+        webSearch: isApprovalIntent ? false : (mode === "agent"),
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
         approvedToolCalls,
+        baseMessages: effectiveMessages,
       },
     );
 

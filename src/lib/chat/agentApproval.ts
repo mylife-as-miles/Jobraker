@@ -12,6 +12,7 @@ export type AgentApprovalStep = {
   title: string;
   detail: string;
   kind: AgentApprovalStepKind;
+  args?: Record<string, unknown>;
 };
 
 export type AgentApprovalRequest = {
@@ -27,4 +28,5 @@ export type ApprovedToolCall = {
   approvalKey: string;
   toolName?: string;
   toolSlug?: string;
+  args?: Record<string, unknown>;
 };
