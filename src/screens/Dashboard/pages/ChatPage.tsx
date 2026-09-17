@@ -2472,6 +2472,15 @@ export const ChatPage = () => {
     : "AI Usage Limits (rolling 5-hour capacity). Open Settings for details.";
   // UI state
   const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    messagesEndRef,
+    onScroll: updateScrollState,
+    scrollContainerRef: chatScrollRef,
+    scrollContentRef,
+    scrollToBottom,
+    showScrollToBottom,
+  } = useChatScrollFollow();
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef(false);
@@ -3802,15 +3811,6 @@ export const ChatPage = () => {
     navigate,
   ]);
 
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const {
-    messagesEndRef,
-    onScroll: updateScrollState,
-    scrollContainerRef: chatScrollRef,
-    scrollContentRef,
-    scrollToBottom,
-    showScrollToBottom,
-  } = useChatScrollFollow();
   const skillPaletteTrigger = useMemo(() => {
     if (!text || (!text.includes("/") && !text.includes("@"))) return null;
     const normalizedCaretPosition = Math.min(
