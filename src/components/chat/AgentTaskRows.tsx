@@ -36,6 +36,24 @@ const statusLabel: Record<AgentTaskStatus, string> = {
 export const AgentTaskRows = ({ tasks, elapsedLabel, onStop }: Props) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const isAnyRunning = tasks.some((t) => t.status === "running");
+  const isAllFailed = tasks.length > 0 && tasks.every((t) => t.status === "failed");
+  const isAllCompleted = tasks.length > 0 && tasks.every((t) => t.status === "completed");
+
+  const titleText = isAllFailed
+    ? "Tasks failed"
+    : isAllCompleted
+      ? "Tasks completed"
+      : isAnyRunning
+        ? "Live task status"
+        : "Task status";
+
+  const subtitleText = isAnyRunning
+    ? `Running for ${elapsedLabel || "a moment"}. You can keep this chat open while it finishes.`
+    : isAllFailed
+      ? `Completed with errors in ${elapsedLabel || "a moment"}.`
+      : `Finished in ${elapsedLabel || "a moment"}.`;
+
   return (
     <section
       aria-label="Live agent task status"
@@ -43,19 +61,19 @@ export const AgentTaskRows = ({ tasks, elapsedLabel, onStop }: Props) => {
     >
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-3.5 py-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">Live task status</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Running for {elapsedLabel || "a moment"}. You can keep this chat open while it finishes.
-          </p>
+          <p className="text-sm font-semibold text-foreground">{titleText}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{subtitleText}</p>
         </div>
-        <button
-          type="button"
-          onClick={onStop}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
-        >
-          <StopCircle className="size-3.5" />
-          Stop
-        </button>
+        {isAnyRunning ? (
+          <button
+            type="button"
+            onClick={onStop}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+          >
+            <StopCircle className="size-3.5" />
+            Stop
+          </button>
+        ) : null}
       </div>
 
       <ul className="divide-y divide-border/65" role="list">

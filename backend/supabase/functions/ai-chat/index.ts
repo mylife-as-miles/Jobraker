@@ -6133,6 +6133,56 @@ Evidence and failure reporting:
                           guidance: "Ask the user to provide a valid webpage URL.",
                         };
                       }
+                    } else if (
+                      fn.name === "rtrvr_job_aggregator" ||
+                      fn.name === "rtrvr_yc_startup_jobs" ||
+                      fn.name === "rtrvr_linkedin_job_hunter"
+                    ) {
+                      // Automatic native job search fallback if RTRVR cloud agent fails
+                      // (e.g. insufficient RTRVR credits, minimum balance requirement, rate limit, or timeout)
+                      const query =
+                        asString(args.title) ||
+                        asString(args.query) ||
+                        asString(args.role) ||
+                        "Engineering";
+                      const location = asString(args.location) || "Remote";
+                      const limit = asNumber(args.limit) || 15;
+                      const sources =
+                        fn.name === "rtrvr_yc_startup_jobs"
+                          ? ["yc", "ats"]
+                          : fn.name === "rtrvr_linkedin_job_hunter"
+                            ? ["ats", "x", "reddit"]
+                            : ["yc", "ats", "x", "reddit", "hackernews"];
+
+                      try {
+                        console.log(`[ai-chat] RTRVR tool ${fn.name} failed. Falling back to native jobs-search for: ${query}`);
+                        const fallbackSearchRes = await invokeEdgeFunctionByName({
+                          authHeader: authHeader!,
+                          name: "jobs-search",
+                          timeoutMs: 90_000,
+                          payload: {
+                            searchQuery: query,
+                            location,
+                            limit,
+                            sources,
+                            locationScope: "global",
+                            targetDomains: requestedCareerSourceDomains,
+                            async: true,
+                          },
+                        });
+                        if (isRecord(fallbackSearchRes) && fallbackSearchRes.success !== false) {
+                          result = {
+                            ...fallbackSearchRes,
+                            source: "native_jobs_search_fallback",
+                            note: "Retrieved via JobRaker's native search engine (RTRVR credits were below minimum balance).",
+                          };
+                        } else {
+                          result = rtrvrRes;
+                        }
+                      } catch (searchErr) {
+                        console.error("[ai-chat] Native job search fallback failed:", searchErr);
+                        result = rtrvrRes;
+                      }
                     } else {
                       result = rtrvrRes;
                     }
