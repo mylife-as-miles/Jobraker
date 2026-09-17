@@ -29,7 +29,7 @@ export const DocumentExportCard: React.FC<DocumentExportCardProps> = ({
   const { success: toastSuccess, error: toastError } = useToast();
 
   const { title } = parseMarkdownToDocBlocks(content);
-  const displayTitle = title || "Executive Strategy Summary";
+  const displayTitle = title || "Executive Brief";
 
   const options: DocumentPdfOptions = {
     title: displayTitle,

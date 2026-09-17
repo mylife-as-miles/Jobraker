@@ -722,23 +722,52 @@ export function generateDocumentPdfBlob(
 }
 
 /**
- * Checks whether a chat message content string is a document or report
- * suitable for 1-click PDF export.
+ * Checks whether a chat message content string is an actual standalone document or report
+ * suitable for 1-click PDF export (e.g. 1-page strategy brief, cheat sheet, cover letter, 30-60-90 plan).
+ *
+ * Rejects regular conversational replies, assistant status messages, or chat narratives
+ * that merely contain headings or bullets.
  */
 export function isExportableDocument(content: string): boolean {
   if (!content || typeof content !== "string") return false;
   const trimmed = content.trim();
   if (trimmed.length < 160) return false;
 
-  const hasHeadings = /^(#|##|###)\s+/m.test(trimmed);
-  const hasBullets = /^[-*•]\s+/m.test(trimmed);
-  const hasSections = (trimmed.match(/##\s+/g) || []).length >= 2;
-  const isDocLike =
-    /strategy|overview|architecture|roadmap|cheat sheet|summary|plan|proposal|brief|interview|assessment|cover letter/i.test(
-      trimmed.slice(0, 300),
+  // Conversational intros (e.g. "I have generated the recruiter cold outreach...") indicate chat chatter,
+  // not a standalone printable document.
+  const isConversational =
+    /^(I have |I've |I am |I will |I'd |Sure[,!]|Certainly[,!]|Here (is|are)|Based on |Below (is|are)|As requested|You can |Please find |Approved|Great!|Hello|Hi\b|Let's |Okay\b)/i.test(
+      trimmed,
     );
+  if (isConversational) {
+    return false;
+  }
 
-  return (hasHeadings && hasSections) || (hasHeadings && hasBullets && isDocLike);
+  // A standalone document must have an H1 title or clear document header in the very first 3 non-empty lines
+  const nonBlankLines = trimmed
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (nonBlankLines.length < 3) return false;
+
+  const firstThreeLines = nonBlankLines.slice(0, 3);
+  const hasLeadingH1 = firstThreeLines.some((l) => /^#\s+[^\n]+/.test(l));
+  const hasLeadingDocHeader = firstThreeLines.some((l) =>
+    /^(\*{1,2}|_{1,2})?(Executive Summary|Systems Strategy|Strategy Brief|Architecture Overview|30-60-90 Day Plan|Interview Brief|Cover Letter|Cheat Sheet|Technical Brief)(\*{1,2}|_{1,2})?/i.test(
+      l,
+    ),
+  );
+
+  if (!hasLeadingH1 && !hasLeadingDocHeader) {
+    return false;
+  }
+
+  // Must have structured content: at least 2 sections (##) or bulleted/numbered sections
+  const sectionCount = (trimmed.match(/^##\s+/gm) || []).length;
+  const hasBulletsOrLists = /^[-*•\d+.]\s+/m.test(trimmed);
+
+  return sectionCount >= 2 || (sectionCount >= 1 && hasBulletsOrLists);
 }
 
 /**

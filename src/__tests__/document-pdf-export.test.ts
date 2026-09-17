@@ -48,6 +48,30 @@ This strategy provides a resilient, highly available roadmap for the core system
     const chatChitChat = "Sure, I can help you with that! Let me know what you need.";
     expect(isExportableDocument(chatChitChat)).toBe(false);
 
+    // Conversational replies with headings or bullets should NOT trigger document export
+    const recruiterOutreachChat = `I have generated the recruiter cold outreach workflow for your target positions. Since directed mail is ready, here are the steps:
+
+## Target Roles & Companies
+- Bitwarden: Staff Engineer (careers@bitwarden.com)
+- Sonatype: Staff Platform (careers@sonatype.com)
+
+## Execution Plan
+1. Draft messages via Gmail
+2. Review in drafts folder
+`;
+    expect(isExportableDocument(recruiterOutreachChat)).toBe(false);
+
+    const generalChatAdvice = `Here are a few tips to improve your interview performance:
+
+## Preparation
+- Research the team
+- Practice system design
+
+## Follow-up
+- Send a thank you note within 24 hours
+`;
+    expect(isExportableDocument(generalChatAdvice)).toBe(false);
+
     const strategyDoc = `
 # Systems Strategy & Architecture Overview
 ## Executive Summary
@@ -64,6 +88,22 @@ We present a high-scale systems strategy designed to sustain 99.99% availability
 3. Day 61-90: Scale out horizontally
 `;
     expect(isExportableDocument(strategyDoc)).toBe(true);
+
+    const coverLetterDoc = `
+# Cover Letter: Senior Full-Stack Engineer at Stripe
+*Application for Job ID #89211*
+
+## Introduction
+I am writing to express my strong interest in the Senior Full-Stack Engineer position at Stripe.
+
+## Relevant Experience
+- Built high-throughput transaction pipelines processing 10k+ events/sec.
+- Led distributed team across 3 time zones.
+
+## Why Stripe
+Your commitment to developer infrastructure aligns with my career goals.
+`;
+    expect(isExportableDocument(coverLetterDoc)).toBe(true);
   });
 
   it("creates a jsPDF document without errors and respects themes", () => {
