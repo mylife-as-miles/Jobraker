@@ -100,15 +100,14 @@ describe("Starter Cold Mail authorization contracts", () => {
     );
   });
 
-  it("keeps the recruiter preset on one saved searched job", () => {
+  it("enables recruiter preset for multiple jobs selection in AI Chat", () => {
     const modal = read("src/components/chat/RecruiterOutreachPresetModal.tsx");
     const recipes = read("src/lib/presets/actionRecipes.ts");
     const chatPage = read("src/screens/Dashboard/pages/ChatPage.tsx");
 
     expect(recipes).toMatch(
-      /recruiter_cold_outreach:[\s\S]*?defaultJobLimit:\s*1,[\s\S]*?maxJobLimit:\s*1/,
+      /recruiter_cold_outreach:[\s\S]*?defaultJobLimit:\s*3,[\s\S]*?maxJobLimit:\s*10/,
     );
-    expect(modal).toContain('selectedJobs[0].source !== "searched"');
     expect(modal).toContain('purpose: "recruiter_cold_outreach"');
     expect(chatPage).toContain("void handleSubmit({ text: prompt })");
     expect(chatPage).toContain("<ChatPresetUserMessage");

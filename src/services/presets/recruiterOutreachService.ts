@@ -97,8 +97,21 @@ export function isInvalidOutreachJob(company?: string, title?: string): boolean 
     "multiple",
     "various companies",
     "multiple companies",
+    "lever",
+    "greenhouse",
+    "linkedin",
+    "indeed",
+    "glassdoor",
+    "ziprecruiter",
+    "workday",
+    "dice",
+    "monster",
   ]);
   if (invalidCompanyNames.has(normCompany)) return true;
+
+  // Catch month/year patterns (e.g. "May 2021", "Remote Jobs - May 2021")
+  if (/^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}$/i.test(normCompany)) return true;
+  if (/^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}$/i.test(normTitle)) return true;
 
   // Catch scraper counts, listicles, or aggregator text in company name
   if (/^\d+\+?\s*(?:hand-curated|curated|positions|jobs|openings|leads|companies)/i.test(normCompany)) return true;

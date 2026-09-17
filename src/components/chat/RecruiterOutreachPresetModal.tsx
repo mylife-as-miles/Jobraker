@@ -253,14 +253,6 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   }, [searchedJobs, appliedJobs, customJobs]);
 
   const toggleJob = (id: string, source: "searched" | "applied" | "custom") => {
-    if (isColdMailPreset) {
-      setSearchedJobs((prev) =>
-        prev.map((job) => ({ ...job, selected: source === "searched" && job.id === id })),
-      );
-      setAppliedJobs((prev) => prev.map((job) => ({ ...job, selected: false })));
-      setCustomJobs([]);
-      return;
-    }
     if (source === "searched") {
       setSearchedJobs((prev) =>
         prev.map((j) => (j.id === id ? { ...j, selected: !j.selected } : j)),
@@ -315,10 +307,6 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   // Compile structured agentic prompt and dispatch to AI Chat
   const handleLaunchAgenticOutreach = () => {
     if (selectedJobs.length === 0) return;
-    if (
-      isColdMailPreset &&
-      (selectedJobs.length !== 1 || selectedJobs[0].source !== "searched")
-    ) return;
 
     const jobLines = selectedJobs
       .map(
@@ -390,18 +378,7 @@ ${jobLines}
     }
 
     onOpenChange(false);
-    if (isColdMailPreset) {
-      const selectedJob = selectedJobs[0];
-      onLaunchPrompt(prompt, {
-        presetId: "recruiter_cold_outreach",
-        jobId: selectedJob.id,
-        companyName: selectedJob.company,
-        jobTitle: selectedJob.title,
-        clientRunId: crypto.randomUUID(),
-      });
-    } else {
-      onLaunchPrompt(prompt);
-    }
+    onLaunchPrompt(prompt);
   };
 
   const toneOptions = useMemo(() => {
@@ -507,13 +484,9 @@ ${jobLines}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Briefcase className="size-3.5 text-brand" />
-                {isColdMailPreset ? "Choose an opportunity (1):" : `Selected Roles (${selectedJobs.length}):`}
+                Selected Roles ({selectedJobs.length}):
               </span>
-              {isColdMailPreset && coldMailQuota ? (
-                <span className="text-[11px] text-muted-foreground">
-                  {coldMailQuota.remaining} / {coldMailQuota.limit} runs remaining
-                </span>
-              ) : selectedJobs.length > 0 ? (
+              {selectedJobs.length > 0 ? (
                 <span className="text-[11px] text-muted-foreground">
                   Est. ~{selectedJobs.length * 5} credits
                 </span>
@@ -523,9 +496,7 @@ ${jobLines}
             <div className="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 rounded-xl border border-border/60 bg-muted/20">
               {selectedJobs.length === 0 ? (
                 <span className="text-xs text-muted-foreground italic">
-                  {isColdMailPreset
-                    ? "No target company selected yet. Choose a role below to research."
-                    : "No positions selected yet. Choose from the list below or add a custom role."}
+                  No positions selected yet. Choose from the list below or add a custom role.
                 </span>
               ) : (
                 selectedJobs.map((job) => (
@@ -552,7 +523,7 @@ ${jobLines}
           </div>
 
           {/* Quick Add Custom Job Drawer */}
-          {!isColdMailPreset && <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-2">
+          <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Plus className="size-3.5 text-brand" />
@@ -595,7 +566,7 @@ ${jobLines}
                 </div>
               </div>
             )}
-          </div>}
+          </div>
 
           {isColdMailPreset && (
             <div className="rounded-xl border border-border/70 bg-background/50 p-3 flex items-center justify-between gap-3">
@@ -636,7 +607,7 @@ ${jobLines}
                   <Search className="size-3" />
                   <span>Searched Jobs ({searchedJobs.length})</span>
                 </button>
-                {!isColdMailPreset && <button
+                <button
                   type="button"
                   onClick={() => setActiveTab("applied")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -647,16 +618,16 @@ ${jobLines}
                 >
                   <History className="size-3" />
                   <span>Applied Jobs Follow-up ({appliedJobs.length})</span>
-                </button>}
+                </button>
               </div>
 
-              {!isColdMailPreset && <button
+              <button
                 type="button"
                 onClick={handleSelectAllCurrentTab}
                 className="text-[11px] text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
               >
                 <span>Select / Deselect All</span>
-              </button>}
+              </button>
             </div>
 
             {/* Filter Search Box */}
@@ -672,12 +643,10 @@ ${jobLines}
             </div>
 
             {/* Jobs List */}
-            {isColdMailPreset && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[11px] text-muted-foreground">
-                <span className="font-semibold text-foreground">💡 1 Target per Run:</span>
-                <span>Recruiter outreach scouts live contacts and creates 1 personalized draft at a time to protect your Gmail reputation.</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/20 text-[11px] text-muted-foreground">
+              <span className="font-semibold text-foreground">💡 Multi-Job Selection:</span>
+              <span>Select one or more positions below to scout verified contacts and craft personalized outreach drafts.</span>
+            </div>
 
             <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
               {loading ? (
@@ -705,15 +674,7 @@ ${jobLines}
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {isColdMailPreset ? (
-                        job.selected ? (
-                          <div className="size-4 rounded-full border-2 border-brand bg-brand flex items-center justify-center shrink-0">
-                            <div className="size-1.5 rounded-full bg-black" />
-                          </div>
-                        ) : (
-                          <div className="size-4 rounded-full border-2 border-muted-foreground/50 shrink-0" />
-                        )
-                      ) : job.selected ? (
+                      {job.selected ? (
                         <CheckSquare className="size-4 text-brand shrink-0" />
                       ) : (
                         <Square className="size-4 text-muted-foreground/60 shrink-0" />
@@ -802,7 +763,7 @@ ${jobLines}
             type="button"
             disabled={
               selectedJobs.length === 0 ||
-              (isColdMailPreset && (!gmailConnected || selectedJobs.length !== 1))
+              (isColdMailPreset && !gmailConnected)
             }
             onClick={handleLaunchAgenticOutreach}
             className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
