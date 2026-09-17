@@ -300,8 +300,8 @@ BEGIN
 
       -- Sync credit_balances table if present
       UPDATE public.credit_balances
-      SET balance = GREATEST(0, balance - v_credits_to_deduct),
-          total_spent = COALESCE(total_spent, 0) + v_credits_to_deduct,
+      SET available = GREATEST(0, available - v_credits_to_deduct),
+          lifetime_spent = COALESCE(lifetime_spent, 0) + v_credits_to_deduct,
           updated_at = v_now
       WHERE user_id = p_user_id;
 
@@ -319,7 +319,7 @@ BEGIN
         p_user_id,
         -v_credits_to_deduct,
         COALESCE(v_new_credit_balance, 0),
-        'usage',
+        'deduction',
         'ai_usage_credit_fallback',
         p_request_id::text,
         'AI usage credit fallback for ' || p_tool_slug,

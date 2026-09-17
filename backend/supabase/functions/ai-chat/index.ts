@@ -2399,14 +2399,18 @@ async function streamAgentModelStep(opts: {
         Number(usage?.candidatesTokenCount || 0) +
           Number(usage?.thoughtsTokenCount || usage?.thinkingTokenCount || 0),
       );
-      await settleAiUsage({
-        serviceClient: opts.serviceClient,
-        userId: opts.userId,
-        requestId: stepRequestId,
-        inputTokens,
-        outputTokens,
-        billable: true,
-      });
+      try {
+        await settleAiUsage({
+          serviceClient: opts.serviceClient,
+          userId: opts.userId,
+          requestId: stepRequestId,
+          inputTokens,
+          outputTokens,
+          billable: true,
+        });
+      } catch (settleErr) {
+        console.error("[ai-chat] Non-fatal settle AI usage error:", settleErr);
+      }
     }
 
     return {
@@ -7250,14 +7254,18 @@ Evidence and failure reporting:
                   Number(usage?.candidatesTokenCount || 0) +
                     Number(usage?.thoughtsTokenCount || usage?.thinkingTokenCount || 0),
                 );
-                await settleAiUsage({
-                  serviceClient,
-                  userId,
-                  requestId: askRequestId,
-                  inputTokens,
-                  outputTokens,
-                  billable: true,
-                });
+                try {
+                  await settleAiUsage({
+                    serviceClient,
+                    userId,
+                    requestId: askRequestId,
+                    inputTokens,
+                    outputTokens,
+                    billable: true,
+                  });
+                } catch (settleErr) {
+                  console.error("[ai-chat ask] Non-fatal settle AI usage error:", settleErr);
+                }
                 streamSuccess = true;
                 break;
               } catch (e) {

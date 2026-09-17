@@ -82,8 +82,8 @@ BEGIN
 
             -- Update V2 credit_balances
             UPDATE public.credit_balances
-            SET balance = GREATEST(0, balance - v_credits_to_charge),
-                total_spent = COALESCE(total_spent, 0) + v_credits_to_charge,
+            SET available = GREATEST(0, available - v_credits_to_charge),
+                lifetime_spent = COALESCE(lifetime_spent, 0) + v_credits_to_charge,
                 updated_at = v_now
             WHERE user_id = p_user_id;
 
@@ -101,7 +101,7 @@ BEGIN
                 p_user_id,
                 -v_credits_to_charge,
                 v_new_balance,
-                'usage',
+                'deduction',
                 'ai_usage_credit_fallback',
                 p_request_id,
                 'AI pay-as-you-go usage (' || v_credits_to_charge || ' credit' || CASE WHEN v_credits_to_charge > 1 THEN 's' ELSE '' END || ' at $0.02/credit)',

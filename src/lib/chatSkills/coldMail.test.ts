@@ -8,6 +8,29 @@ vi.mock("@/services/supabase/invokeProtectedFunction", () => ({
   invokeProtectedFunction: invokeProtectedFunctionMock,
 }));
 
+vi.mock("@/lib/supabaseClient", () => ({
+  createClient: vi.fn().mockReturnValue({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user-123" } } }),
+    },
+  }),
+  supabase: {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user-123" } } }),
+    },
+  },
+}));
+
+vi.mock("@/services/presets/recruiterOutreachService", () => ({
+  loadCandidateEvidence: vi.fn().mockResolvedValue("Senior engineer with 8 years experience in distributed systems."),
+  craftOutreachPitch: vi.fn().mockResolvedValue({
+    subject: "Platform Engineer - Globex",
+    body: "Hi Globex Hiring Team,\n\nI noticed the Platform Engineer role and wanted to reach out directly...",
+    tone: "Startup Casual",
+    channel: "linkedin_inmail",
+  }),
+}));
+
 import {
   coldMailSkill,
   extractColdMailJobReferences,

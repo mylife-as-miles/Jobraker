@@ -980,13 +980,19 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
           typeof contact.companyName === "string"
             ? contact.companyName
             : "Company";
-        const email =
+        const rawEmail =
           typeof contact.contactEmail === "string"
-            ? contact.contactEmail
-            : "no email found";
+            ? contact.contactEmail.trim()
+            : "";
+        const email =
+          rawEmail.length > 0
+            ? rawEmail
+            : typeof contact.careersPageUrl === "string" && contact.careersPageUrl.trim()
+              ? `careers portal (${contact.careersPageUrl.trim()})`
+              : "no direct email found";
         const confidence =
-          typeof contact.confidence === "string"
-            ? `, ${contact.confidence} confidence`
+          typeof contact.confidence === "string" && contact.confidence.trim()
+            ? `, ${contact.confidence.trim()} confidence`
             : "";
         return `- ${company}: ${email}${confidence}`;
       }),

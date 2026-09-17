@@ -372,9 +372,9 @@ ${jobLines}
 
 **Outreach Configuration**:
 - **Tone**: ${toneLabel}
-- **Step 1**: Pull verified recruiter, talent acquisition, and hiring manager contact emails for each company.
-- **Step 2**: Craft tailored, high-conversion outreach pitches highlighting relevant achievements from my profile and resume.
-- **Step 3**: Prepare and sync the drafts directly into my connected Gmail workspace for review before sending.`;
+- **Step 1**: Pull verified recruiter, talent acquisition, and hiring manager contact emails for each company using company scout.
+- **Step 2**: Craft tailored, high-conversion outreach pitches highlighting relevant achievements from my profile and resume. If no direct recruiter email was found for a company, STILL craft the personalized pitch (formatted for LinkedIn InMail / Direct Message) and display it directly in your response!
+- **Step 3**: For any positions where an email address was found, create the draft in my connected Gmail workspace for review before sending. Always display the completed pitches and summary here in the chat.`;
     }
 
     onOpenChange(false);
