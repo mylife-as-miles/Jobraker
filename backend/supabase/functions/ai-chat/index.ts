@@ -2495,7 +2495,28 @@ When the user explicitly asks to list their applications, jobs, or application s
    | Job Title | Company | Match Score | Status |
    | :--- | :--- | :--- | :--- |
    | Software Engineer | Google | 92% | Applied |
-   | Frontend Dev | Vercel | 87% | Interview |
+    | Frontend Dev | Vercel | 87% | Interview |
+`;
+
+const DOCUMENT_GENERATION_AND_PDF_RULES = `
+Document Generation & Executive Artifacts (1-Pagers, Strategy Sheets, Interview Briefs, PDFs):
+1. Distinguish Document Creation from Job Search:
+   - When the user asks to generate, create, or write a document — such as a 1-page strategy summary (e.g. "Systems Strategy summary", "Engineering Leadership 1-pager"), interview cheat sheet, 30-60-90 day plan, technical case study, executive brief, tailored pitch, portfolio overview, or cover letter:
+   - NEVER confuse this with a request to search for job openings!
+   - DO NOT call run_job_search, search_public_job_sources, or RTRVR tools. The user is preparing for an interview or asking for strategic content to share, NOT looking for new job listings.
+2. Structure & Polish:
+   - Author the full, complete document directly in chat using clean, high-impact Markdown.
+   - For 1-page strategy summaries or interview sheets, use a professional executive structure:
+     - # [Document Title] (e.g., "# Systems Strategy & Architecture Overview")
+     - *[Subtitle / Context]* (e.g., "*Prepared for Technical Leadership & Systems Strategy Interview*")
+     - ## 1. Executive Thesis & System Tenets (Core philosophy, uptime/resilience goals, invariants)
+     - ## 2. Strategic Pillars & Architectural Core (Scalability, event-driven decoupling, data consistency)
+     - ## 3. Operational Excellence & Telemetry (Observability, CI/CD velocity, proactive alerting, automation)
+     - ## 4. 30-60-90 Day Execution Roadmap (Phase 1: audit/telemetry, Phase 2: decoupling, Phase 3: velocity at scale)
+     - ## 5. Risk Matrix & Mitigations (Security, single points of failure, bottleneck prevention)
+3. Built-In 1-Click PDF Export:
+   - JobRaker's chat interface includes a native 1-click "Download PDF" action right on your message!
+   - Mention to the user at the end of your response that they can download this document as a beautifully formatted, print-ready PDF using the "Download PDF" button right below your answer.
 `;
 
 const createAuthedSupabaseClient = (authHeader: string) =>
@@ -4528,7 +4549,8 @@ Deno.serve(async (req) => {
     let systemInstruction = [
       ACCOUNT_ACCESS_RULES.trim(),
       APP_INTERFACE_GUIDE.trim(),
-      CHARTS_AND_TABLES_RULES.trim()
+      CHARTS_AND_TABLES_RULES.trim(),
+      DOCUMENT_GENERATION_AND_PDF_RULES.trim(),
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -4874,16 +4896,11 @@ LinkedIn via Composio (professional profile, company signals, confirm-before-pos
 - Do not claim LinkedIn can search all jobs, scrape arbitrary profiles, send connection requests, send DMs, or apply to jobs through this toolkit unless a specific future tool exists and the user explicitly asks. Use native JobRaker job search tools for broad job discovery.
 - Summarize LinkedIn results into JobRaker-native outcomes: profile identity, company/page permissions, content draft/readiness, post URL/URN, engagement signals, company credibility signals, audience-fit notes, professional-brand recommendations, and next job-search action. Do not expose private LinkedIn data beyond what is necessary for the request.
 
-Text to PDF via Composio (no-auth document export):
-- Use Text to PDF when the user asks to turn finalized plain text, Markdown, or styled resumes/cover letters into a downloadable PDF, especially resumes, cover letters, recruiter notes, interview prep sheets, application packets, follow-up templates, or JobRaker-generated summaries.
-- First call list_composio_integrations and confirm Text to PDF is available. It is a NO_AUTH utility, so do not ask the user to connect it in Settings.
-- When generating a PDF, ALWAYS apply a clean, professional CSS template style unless explicitly requested otherwise. Wrap content with an inline HTML/CSS container (for example: <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.6;">) with styled headers (for example: <h1 style="color: #0f172a; border-bottom: 2px solid #2fd968; padding-bottom: 6px;">), modern badges, and structured margins so the PDF looks like a polished, templated resume/document rather than unstyled plain text.
-- Prefer TEXT_TO_PDF_CONVERT_TEXT_TO_PDF for normal chat-generated exports. Pass the complete final styled content inline in the text argument; the tool does not accept document IDs, private URLs, placeholders, or "use the previous doc" references. Use file_type "markdown" (or HTML within markdown) for headings, lists, links, emphasis, and code blocks.
-- Before converting, ensure the content is complete, clean, and final enough for a PDF. Normalize malformed markup, close tags/lists/code fences, replace unresolved placeholders, and use clean CSS styling. Images must use publicly accessible URLs to render.
-- For large or multi-step conversions, use TEXT_TO_PDF_UPLOAD_FILE, TEXT_TO_PDF_START_ASYNC_CONVERSION, and TEXT_TO_PDF_DOWNLOAD_FILE only when the simple inline conversion is not enough. Track returned job_id/file_id values carefully; temporary files/jobs expire automatically after a few hours.
-- Use TEXT_TO_PDF_DELETE_FILE or TEXT_TO_PDF_DELETE_ASYNC_JOB only when cleanup is explicitly needed or the user asks to remove temporary conversion artifacts.
-- After a successful conversion, return the PDF URL from data.file.s3url when available, plus data.file.name and data.file.mimetype if present. If the PDF URL is missing, summarize the tool response and explain what must be retried.
-- Do not send private Google Drive/Docs/Notion content to Text to PDF unless the user asked to export that content and the exact content has already been read or drafted in the chat context. For private documents, prefer native Google Docs export when the user wants the original document layout.
+Text to PDF & Native Document Export:
+- JobRaker Chat features native 1-click client-side PDF export! When the user asks for a document, 1-page summary, strategy sheet, or PDF, write out the complete, beautifully structured content directly in markdown with clear headings, bullet points, and executive sections. Inform the user they can click the "Download PDF" button directly on your message to get a print-ready, styled PDF.
+- Use Composio Text to PDF tool only when the user specifically requests a cloud-hosted PDF URL or when native chat markdown is insufficient.
+- When generating content for export, ALWAYS maintain clean, professional executive formatting with clear headings (#, ##), bullet points, and structured margins.
+- Do not send private Google Drive/Docs/Notion content to external converters unless the user asked to export that content.
 
 Web search, live job extraction, and auto-applying via RTRVR:
 - For ANY request to search for jobs across the web, look up job openings, or extract listings from LinkedIn, Indeed, Glassdoor, or Y Combinator, use RTRVR tools:
@@ -6170,7 +6187,7 @@ Evidence and failure reporting:
                       result = {
                         ...result,
                         guidance:
-                          "Composio integration is not available or requires a paid tier. Do NOT try invoke_composio_tool again. Immediately fall back to JobRaker's native search tools: use run_job_search or search_public_job_sources to find jobs and extract openings directly.",
+                          "Composio integration is not available or requires a paid tier. Do NOT try invoke_composio_tool again. If the user requested document generation, a strategy summary, 1-pager, interview prep, cover letter, or career advice, write out the complete, high-quality response directly in markdown. JobRaker's chat interface has native 1-click PDF export for the user. Only if the user explicitly asked to search external job boards should you use JobRaker's native search tools (run_job_search).",
                       };
                     }
                   } else if (fn.name === "list_database_schema") {

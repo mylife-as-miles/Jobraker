@@ -4,12 +4,17 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  FileDown,
   List,
   RefreshCw,
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
+import {
+  exportDocumentAsPdf,
+  isExportableDocument,
+} from "@/utils/document-pdf-export";
 
 type StreamSource = { href: string; label: string; domain: string };
 
@@ -17,6 +22,8 @@ type StreamedAnswerFooterProps = {
   content: string;
   isStreaming: boolean;
   onRegenerate: () => void;
+  candidateName?: string;
+  candidateEmail?: string;
 };
 
 const sourceFromUrl = (href: string, label?: string): StreamSource | null => {
@@ -49,11 +56,17 @@ export function StreamedAnswerFooter({
   content,
   isStreaming,
   onRegenerate,
+  candidateName,
+  candidateEmail,
 }: StreamedAnswerFooterProps) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+
   const sources = useMemo(() => extractSources(content), [content]);
   const isError = /^\s*error:/i.test(content);
+  const canExportPdf = useMemo(() => isExportableDocument(content), [content]);
 
   if (!content.trim() || isError) return null;
 
@@ -61,6 +74,24 @@ export function StreamedAnswerFooter({
     await navigator.clipboard.writeText(content);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  const downloadPdf = async () => {
+    if (downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      await exportDocumentAsPdf(content, {
+        candidateName,
+        candidateEmail,
+        fitToOnePage: true,
+      });
+      setPdfDownloaded(true);
+      window.setTimeout(() => setPdfDownloaded(false), 2500);
+    } catch (e) {
+      console.error("PDF export failed:", e);
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -88,6 +119,25 @@ export function StreamedAnswerFooter({
           <RefreshCw size={14} />
           Regenerate
         </button>
+        {canExportPdf && (
+          <button
+            type="button"
+            onClick={() => void downloadPdf()}
+            disabled={downloadingPdf}
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-brand bg-brand/10 hover:bg-brand/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+            aria-label="Download as PDF"
+            title="Download formatted 1-page PDF"
+          >
+            {downloadingPdf ? (
+              <div className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+            ) : pdfDownloaded ? (
+              <Check size={14} />
+            ) : (
+              <FileDown size={14} />
+            )}
+            {pdfDownloaded ? "Downloaded PDF" : "Download PDF"}
+          </button>
+        )}
         {sources.length > 0 && (
           <button
             type="button"

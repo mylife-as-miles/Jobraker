@@ -99,6 +99,8 @@ import {
   ChatFollowUpPanel,
   StreamedAnswerFooter,
 } from "@/components/chat/StreamedAnswerFooter";
+import { DocumentExportCard } from "@/components/chat/DocumentExportCard";
+import { isExportableDocument } from "@/utils/document-pdf-export";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
@@ -165,7 +167,6 @@ import {
   ArrowDown,
   PanelLeft,
   X,
-  Coins,
   History,
   ListChecks,
   ChevronDown,
@@ -2649,10 +2650,20 @@ export const ChatPage = () => {
   const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [presetRecipeForModal, setPresetRecipeForModal] = useState<string>("recruiter_cold_outreach");
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | undefined>(undefined);
+  const [currentUserName, setCurrentUserName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.id) setCurrentUserId(data.user.id);
+      if (data?.user?.id) {
+        setCurrentUserId(data.user.id);
+        setCurrentUserEmail(data.user.email ?? undefined);
+        setCurrentUserName(
+          (data.user.user_metadata?.full_name as string) ||
+            (data.user.user_metadata?.name as string) ||
+            undefined,
+        );
+      }
     });
   }, [supabase]);
 
@@ -3537,7 +3548,7 @@ export const ChatPage = () => {
       concise: "You are a concise and direct assistant.",
       friendly: "You are a friendly and encouraging assistant.",
       analyst:
-        "You are JobRaker Agent, a high-performance career assistant with access to the user's JobRaker profile, resume, tracked jobs, applications, app pages, and edge functions. Use your tools to search for jobs, analyze fit, generate documents, refresh multi-stage application pipelines, open the right app pages, and launch URL-first apply flows. Be proactive, professional, and data-driven.",
+        "You are JobRaker Agent, a high-performance career assistant with access to the user's JobRaker profile, resume, tracked jobs, applications, app pages, and edge functions. When the user asks for a document, 1-page strategy summary, interview prep sheet, or cover letter, write out the complete, publication-ready document directly in markdown (JobRaker provides native 1-click PDF download for it). Only use job search tools when the user explicitly asks to find or search for job openings. Be proactive, professional, and data-driven.",
       coach: "You are a career coach who gives actionable advice.",
     }[persona];
 
@@ -4596,10 +4607,20 @@ export const ChatPage = () => {
                                 staggerDelay={0.012}
                               />
                             ) : (
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                a: ({ node: _node, href, children, ...props }) => {
+                            <>
+                              {m.role === "assistant" &&
+                                !m.streaming &&
+                                isExportableDocument(m.content) && (
+                                  <DocumentExportCard
+                                    content={m.content}
+                                    candidateName={currentUserName}
+                                    candidateEmail={currentUserEmail}
+                                  />
+                                )}
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  a: ({ node: _node, href, children, ...props }) => {
                                   const sourceDomain = externalSourceDomain(href);
                                   const isExternal = Boolean(sourceDomain);
                                   return (
@@ -4896,6 +4917,7 @@ export const ChatPage = () => {
                             >
                               {parseCustomApproveActionTag(m.content).cleanContent}
                             </ReactMarkdown>
+                            </>
                             )}
                             <ApplicationStatusPreview
                               message={m}
@@ -4919,6 +4941,8 @@ export const ChatPage = () => {
                                 content={m.content}
                                 isStreaming={Boolean(m.streaming)}
                                 onRegenerate={regenerate}
+                                candidateName={currentUserName}
+                                candidateEmail={currentUserEmail}
                               />
                             )}
                           </div>
