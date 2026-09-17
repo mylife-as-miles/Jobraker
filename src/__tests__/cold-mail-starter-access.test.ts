@@ -110,6 +110,7 @@ describe("Starter Cold Mail authorization contracts", () => {
     );
     expect(modal).toContain('selectedJobs[0].source !== "searched"');
     expect(modal).toContain('purpose: "recruiter_cold_outreach"');
-    expect(chatPage).toContain('skillId: "cold_mail"');
+    expect(chatPage).toContain("void handleSubmit({ text: prompt })");
+    expect(chatPage).toContain("<ChatPresetUserMessage");
   });
 });

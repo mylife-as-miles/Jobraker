@@ -14,12 +14,14 @@ interface ChatPresetsBarProps {
   className?: string;
 }
 
-export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
+const RECIPES = Object.values(ACTION_RECIPES);
+
+export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = React.memo(({
   onSelectRecipe,
   activeRecipeId,
   className = "",
 }) => {
-  const recipes = Object.values(ACTION_RECIPES);
+  const recipes = RECIPES;
 
   return (
     <DropdownMenu>
@@ -71,6 +73,7 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
           return (
             <DropdownMenuItem
               key={recipe.id}
+              aria-label={recipe.title}
               onSelect={() => onSelectRecipe(recipe.id)}
               className={`group flex cursor-pointer items-start gap-3 rounded-xl border px-2.5 py-2.5 ${
                 isActive
@@ -116,4 +119,4 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-};
+});

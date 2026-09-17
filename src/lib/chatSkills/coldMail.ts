@@ -198,9 +198,25 @@ export const coldMailSkill: JobrakerChatSkill = {
       Math.max(structuredTargets.length, recentSearchReferences.length) > 1 &&
       !selectedSearchJob
     ) {
-      return clarificationResult(
-        "Several jobs are in the current search. Choose one by company, role, or position number.",
-      );
+      const targets: ColdMailTarget[] = structuredTargets.length
+        ? structuredTargets
+        : recentSearchReferences.map((ref) => ({
+            jobTitle: ref.jobTitle,
+            companyName: ref.companyName,
+            applyUrl: "",
+          }));
+
+      return {
+        status: "completed",
+        content: `### Found ${targets.length} Job Opportunities in Search\n\nSelect a company below to prepare an approved recruiter outreach email, or use the **Recruiter Intro (1-Click)** preset from the presets menu to scout and pitch all of them simultaneously.`,
+        output: {
+          success: true,
+          status: "awaiting_target_selection",
+          searchQuery: asString(input.args.roleQuery) || "",
+          location: asString(input.args.location) || "",
+          targets,
+        },
+      };
     }
 
     if (
@@ -250,9 +266,29 @@ export const coldMailSkill: JobrakerChatSkill = {
       );
     }
     if (targetCompanies.length > 1) {
-      return clarificationResult(
-        "Cold Mail works on one individual job at a time. Name the company and role you want to use.",
-      );
+      const targets: ColdMailTarget[] = recentSearchReferences.length > 1
+        ? recentSearchReferences.map((r) => ({
+            jobTitle: r.jobTitle,
+            companyName: r.companyName,
+            applyUrl: "",
+          }))
+        : targetCompanies.map((comp) => ({
+            jobTitle: asString(input.args.jobTitle) || "Candidate Role",
+            companyName: comp,
+            applyUrl: "",
+          }));
+
+      return {
+        status: "completed",
+        content: `### Found ${targets.length} Target Opportunities\n\nSelect a company below to prepare an approved recruiter cold email, or use the **Recruiter Intro (1-Click)** preset to scout and pitch all of them together.`,
+        output: {
+          success: true,
+          status: "awaiting_target_selection",
+          searchQuery: asString(input.args.jobTitle) || "",
+          location: asString(input.args.location) || "",
+          targets,
+        },
+      };
     }
 
     const fullContext = contextText(input);

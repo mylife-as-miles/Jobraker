@@ -104,6 +104,7 @@ import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
 import { RecruiterOutreachPresetModal } from "@/components/chat/RecruiterOutreachPresetModal";
+import { ChatPresetUserMessage } from "@/components/chat/ChatPresetUserMessage";
 import {
   ApplicationStatusTable,
   type ApplicationStatusRecord,
@@ -4489,35 +4490,47 @@ export const ChatPage = () => {
                         .find((message) => message.role === "user"),
                     );
 
+                    const isPresetPrompt = Boolean(
+                      m.role === "user" &&
+                      m.content &&
+                      m.content.includes("🎯 **"),
+                    );
+
                     return (
-                    <Fragment key={m.id}>
-                      <div
-                      className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      {m.role !== "user" && (
-                        <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 border border-brand/20 mt-1'>
-                          <Bot size={16} className='text-brand' />
-                        </div>
-                      )}
-                      <div
-                        data-ai-message={m.role !== "user" ? "true" : undefined}
-                        className={`rounded-2xl shadow-sm ${
-                          m.role === "user"
-                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"
-                            : m.role === "skill"
-                              ? "max-w-[95%] bg-transparent p-0 shadow-none select-text"
-                              : "max-w-[85%] bg-black/95 border border-zinc-800/80 text-card-foreground rounded-tl-sm p-4 shadow-md shadow-black/80 select-text"
-                        }`}
+                      <Fragment key={m.id}>
+                        <div
+                        className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                       >
-                        {m.role === "user" ? (
-                          <div className='text-sm break-words whitespace-pre-wrap select-text'>
-                            <UserChatAttachment
-                              messageId={m.id}
-                              hasPastedImage={m.hasPastedImage}
-                            />
-                            {m.content.trim() ? m.content : null}
+                        {m.role !== "user" && (
+                          <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 border border-brand/20 mt-1'>
+                            <Bot size={16} className='text-brand' />
                           </div>
-                        ) : (
+                        )}
+                        <div
+                          data-ai-message={m.role !== "user" ? "true" : undefined}
+                          className={`rounded-2xl shadow-sm ${
+                            m.role === "user"
+                              ? isPresetPrompt
+                                ? "max-w-[85%] bg-card/95 border border-brand/40 text-card-foreground rounded-tr-sm p-3.5 shadow-md shadow-black/80 select-text"
+                                : "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"
+                              : m.role === "skill"
+                                ? "max-w-[95%] bg-transparent p-0 shadow-none select-text"
+                                : "max-w-[85%] bg-black/95 border border-zinc-800/80 text-card-foreground rounded-tl-sm p-4 shadow-md shadow-black/80 select-text"
+                          }`}
+                        >
+                          {m.role === "user" ? (
+                            <div className='text-sm break-words select-text'>
+                              <UserChatAttachment
+                                messageId={m.id}
+                                hasPastedImage={m.hasPastedImage}
+                              />
+                              {isPresetPrompt ? (
+                                <ChatPresetUserMessage content={m.content} />
+                              ) : (
+                                <div className="whitespace-pre-wrap">{m.content.trim() ? m.content : null}</div>
+                              )}
+                            </div>
+                          ) : (
                           <div className={`text-sm prose prose-invert max-w-none overflow-x-auto select-text ${
                             isChatBusy && idx === messages.length - 1 ? "token-stream" : ""
                           }`}>
@@ -4982,24 +4995,10 @@ export const ChatPage = () => {
                   onOpenChange={setPresetModalOpen}
                   recipeId={presetRecipeForModal}
                   userId={currentUserId}
-                  onLaunchPrompt={(prompt, presetContext) => {
+                  onLaunchPrompt={(prompt) => {
                     setPresetModalOpen(false);
                     setActivePresetRecipeId(null);
-                    if (presetContext?.presetId === "recruiter_cold_outreach") {
-                      void runSkillCall(
-                        {
-                          detected: true,
-                          skillId: "cold_mail",
-                          trigger: "mention",
-                          rawCommand: "@ColdMail",
-                          userInstruction: prompt,
-                          args: presetContext,
-                        },
-                        prompt,
-                      );
-                    } else {
-                      void handleSubmit({ text: prompt });
-                    }
+                    void handleSubmit({ text: prompt });
                   }}
                 />
 

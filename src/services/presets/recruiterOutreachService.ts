@@ -109,6 +109,8 @@ export function isInvalidOutreachJob(company?: string, title?: string): boolean 
   if (/(?:companies|employers)\s+hiring\s+in/i.test(normTitle)) return true;
   if (/^how\s+to\b|^guide\s+to\b|^top\s+\d+/i.test(normTitle)) return true;
   if (/(?:all\s+verified\s+remote\s+jobs|hand-curated\s+positions)/i.test(normTitle)) return true;
+  if (/(?:job\s+openings|careers|open\s+positions|we\s+are\s+hiring)\s+at\b/i.test(normTitle)) return true;
+  if (/^all\s+jobs\b|^view\s+openings\b|^browse\s+jobs\b/i.test(normTitle)) return true;
 
   return false;
 }
@@ -379,12 +381,16 @@ export async function craftOutreachPitch(
     }
 
     const subject = outreach.subject || `Application interest: ${job.title} - ${job.company}`;
-    const body = outreach.body;
-    const previewHook = extractPreviewHook(body);
+    const cleanBody = (outreach.body || "")
+      .replace(/👉\s*(?:undefined|null)\b/gi, "")
+      .replace(/\b(?:undefined|null)\b/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    const previewHook = extractPreviewHook(cleanBody);
 
     return {
       subject,
-      body,
+      body: cleanBody,
       tone,
       previewHook,
       customized: false,

@@ -118,7 +118,7 @@ function buildPrompt(
   4. "body" should be a highly personalized, short outreach message (under 250 words) suitable for a LinkedIn connection note or an email.
   5. The message MUST start with a professional greeting like "Hi [Hiring Manager Name or 'Team']," or "Dear [Company Name] Hiring Team,".
   6. The body should connect key metrics and proof points from the candidate's resume/profile to the core responsibilities of the role.
-  7. The body MUST naturally reference the Candidate Portfolio Link (if provided) using a friendly CTA. E.g. "You can view my full professional profile and project portfolio here: 👉 ${publicProfileUrl}".
+  ${publicProfileUrl ? `7. The body should naturally reference the Candidate Portfolio Link using a friendly CTA. E.g. "You can view my full professional profile and project portfolio here: 👉 ${publicProfileUrl}".` : `7. Do NOT invent a fake portfolio or profile URL or output placeholders like "undefined".`}
   8. Return ONLY the raw JSON object. Do not wrap in markdown code blocks like \`\`\`json.
   `;
 }
@@ -233,9 +233,16 @@ serve(async (req) => {
       if (!text) throw new Error("Empty response from AI");
       const parsed = parseStructuredJson(text) as Record<string, unknown>;
 
+      const rawBody = typeof parsed.body === "string" ? parsed.body : `Hi ${safeCompanyName} Hiring Team,...`;
+      const cleanedBody = rawBody
+        .replace(/👉\s*(?:undefined|null)\b/gi, "")
+        .replace(/\b(?:undefined|null)\b/gi, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
       outreach = {
         subject: typeof parsed.subject === "string" ? parsed.subject : `Application interest: ${safeRole}`,
-        body: typeof parsed.body === "string" ? parsed.body : `Hi ${safeCompanyName} Hiring Team,...`,
+        body: cleanedBody,
       };
     } catch (error: any) {
       console.error("generate-outreach falling back", error);

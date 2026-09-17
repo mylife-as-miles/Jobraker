@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Zap,
   Sparkles,
@@ -35,6 +35,7 @@ import {
 
 interface RecruiterOutreachWorkflowCardProps {
   userId?: string;
+  autoStart?: boolean;
   onClose?: () => void;
   onComplete?: (summary: { total: number; drafted: number; sent: number }) => void;
   className?: string;
@@ -42,6 +43,7 @@ interface RecruiterOutreachWorkflowCardProps {
 
 export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCardProps> = ({
   userId,
+  autoStart = false,
   onClose,
   onComplete,
   className = "",
@@ -74,6 +76,127 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
 
   // Global error banner
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const autoStartedRef = useRef(false);
+
+  // ACTION 1: 1-Click Pull Recruiter Emails
+  const handlePullRecruiterEmails = async (
+    explicitStates?: OutreachJobState[],
+  ): Promise<OutreachJobState[]> => {
+    setGlobalError(null);
+    setIsScoutingBatch(true);
+
+    const activeStates = explicitStates || selectedJobStates;
+    if (activeStates.length === 0) {
+      setGlobalError("Please select at least 1 job to scout.");
+      setIsScoutingBatch(false);
+      return [];
+    }
+
+    // Set loading on selected jobs
+    setJobStates((prev) =>
+      prev.map((js) =>
+        activeStates.some((a) => a.job.id === js.job.id)
+          ? { ...js, contactLoading: true, contactError: undefined }
+          : js,
+      ),
+    );
+
+    // Scout concurrently
+    const updated = await Promise.all(
+      activeStates.map(async (js) => {
+        try {
+          const contact = await scoutRecruiterForJob(supabase, js.job);
+          return { id: js.job.id, contact, contactLoading: false };
+        } catch (err: any) {
+          return {
+            id: js.job.id,
+            contactError: err?.message || "Scouting failed",
+            contactLoading: false,
+          };
+        }
+      }),
+    );
+
+    let nextStates: OutreachJobState[] = [];
+    setJobStates((prev) => {
+      nextStates = prev.map((js) => {
+        const res = updated.find((u) => u.id === js.job.id);
+        if (!res) return js;
+        return {
+          ...js,
+          contact: res.contact || js.contact,
+          contactLoading: false,
+          contactError: res.contactError,
+        };
+      });
+      return nextStates;
+    });
+
+    setIsScoutingBatch(false);
+    setCurrentStep(2);
+    return nextStates.filter((js) => activeStates.some((a) => a.job.id === js.job.id));
+  };
+
+  // ACTION 2: 1-Click Craft Outreach Pitches
+  const handleCraftOutreachPitches = async (
+    overrideTone?: OutreachTone,
+    explicitStates?: OutreachJobState[],
+    explicitEvidence?: string,
+  ) => {
+    setGlobalError(null);
+    setIsCraftingBatch(true);
+    const toneToUse = overrideTone || selectedTone;
+    const evidenceToUse = explicitEvidence !== undefined ? explicitEvidence : candidateEvidence;
+
+    const activeStates = explicitStates || selectedJobStates;
+    setJobStates((prev) =>
+      prev.map((js) =>
+        activeStates.some((a) => a.job.id === js.job.id)
+          ? { ...js, pitchLoading: true, pitchError: undefined }
+          : js,
+      ),
+    );
+
+    const updated = await Promise.all(
+      activeStates.map(async (js) => {
+        if (!js.contact) {
+          return { id: js.job.id, pitchLoading: false };
+        }
+        try {
+          const pitch = await craftOutreachPitch(
+            supabase,
+            js.job,
+            js.contact,
+            evidenceToUse,
+            toneToUse,
+          );
+          return { id: js.job.id, pitch, pitchLoading: false };
+        } catch (err: any) {
+          return {
+            id: js.job.id,
+            pitchError: err?.message || "Pitch generation failed",
+            pitchLoading: false,
+          };
+        }
+      }),
+    );
+
+    setJobStates((prev) =>
+      prev.map((js) => {
+        const res = updated.find((u) => u.id === js.job.id);
+        if (!res) return js;
+        return {
+          ...js,
+          pitch: res.pitch || js.pitch,
+          pitchLoading: false,
+          pitchError: res.pitchError,
+        };
+      }),
+    );
+
+    setIsCraftingBatch(false);
+    setCurrentStep(3);
+  };
 
   // 1. Initial Load: Pre-select top 3 uncontacted jobs (Zero-effort start!)
   useEffect(() => {
@@ -103,6 +226,16 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
               selected: index < 3,
             }));
             setJobStates(initialStates);
+
+            // If autoStart is enabled, immediately run the autonomous workflow
+            if (autoStart && !autoStartedRef.current && initialStates.length > 0) {
+              autoStartedRef.current = true;
+              const selectedToRun = initialStates.filter((s) => s.selected);
+              void (async () => {
+                const scouted = await handlePullRecruiterEmails(selectedToRun);
+                await handleCraftOutreachPitches(selectedTone, scouted, evidence);
+              })();
+            }
           }
         }
       } catch (err) {
@@ -116,7 +249,7 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
     return () => {
       isMounted = false;
     };
-  }, [supabase, userId]);
+  }, [supabase, userId, autoStart]);
 
   const selectedJobStates = useMemo(
     () => jobStates.filter((js) => js.selected),
@@ -147,112 +280,6 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
     setJobStates((prev) => [{ job: newJob, selected: true }, ...prev]);
     setInstantJobInput({ company: "", title: "" });
     setShowAddJobDrawer(false);
-  };
-
-  // ACTION 1: 1-Click Pull Recruiter Emails
-  const handlePullRecruiterEmails = async () => {
-    setGlobalError(null);
-    setIsScoutingBatch(true);
-
-    const activeStates = selectedJobStates;
-    if (activeStates.length === 0) {
-      setGlobalError("Please select at least 1 job to scout.");
-      setIsScoutingBatch(false);
-      return;
-    }
-
-    // Set loading on selected jobs
-    setJobStates((prev) =>
-      prev.map((js) =>
-        js.selected ? { ...js, contactLoading: true, contactError: undefined } : js,
-      ),
-    );
-
-    // Scout concurrently
-    const updated = await Promise.all(
-      activeStates.map(async (js) => {
-        try {
-          const contact = await scoutRecruiterForJob(supabase, js.job);
-          return { id: js.job.id, contact, contactLoading: false };
-        } catch (err: any) {
-          return {
-            id: js.job.id,
-            contactError: err?.message || "Scouting failed",
-            contactLoading: false,
-          };
-        }
-      }),
-    );
-
-    setJobStates((prev) =>
-      prev.map((js) => {
-        const res = updated.find((u) => u.id === js.job.id);
-        if (!res) return js;
-        return {
-          ...js,
-          contact: res.contact || js.contact,
-          contactLoading: false,
-          contactError: res.contactError,
-        };
-      }),
-    );
-
-    setIsScoutingBatch(false);
-    setCurrentStep(2);
-  };
-
-  // ACTION 2: 1-Click Craft Outreach Pitches
-  const handleCraftOutreachPitches = async (overrideTone?: OutreachTone) => {
-    setGlobalError(null);
-    setIsCraftingBatch(true);
-    const toneToUse = overrideTone || selectedTone;
-
-    const activeStates = selectedJobStates;
-    setJobStates((prev) =>
-      prev.map((js) =>
-        js.selected ? { ...js, pitchLoading: true, pitchError: undefined } : js,
-      ),
-    );
-
-    const updated = await Promise.all(
-      activeStates.map(async (js) => {
-        if (!js.contact) {
-          return { id: js.job.id, pitchLoading: false };
-        }
-        try {
-          const pitch = await craftOutreachPitch(
-            supabase,
-            js.job,
-            js.contact,
-            candidateEvidence,
-            toneToUse,
-          );
-          return { id: js.job.id, pitch, pitchLoading: false };
-        } catch (err: any) {
-          return {
-            id: js.job.id,
-            pitchError: err?.message || "Pitch generation failed",
-            pitchLoading: false,
-          };
-        }
-      }),
-    );
-
-    setJobStates((prev) =>
-      prev.map((js) => {
-        const res = updated.find((u) => u.id === js.job.id);
-        if (!res) return js;
-        return {
-          ...js,
-          pitch: res.pitch || js.pitch,
-          pitchLoading: false,
-          pitchError: res.pitchError,
-        };
-      }),
-    );
-
-    setIsCraftingBatch(false);
-    setCurrentStep(3);
   };
 
   // ACTION 3: 1-Click Deliver to Gmail
@@ -621,6 +648,28 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
           {/* STAGE 2: Review Contacts & Pitches */}
           {currentStep >= 2 && currentStep < 4 && (
             <div className="space-y-3">
+              {/* Recruiter Email Discovery Summary Banner */}
+              <div className="p-3 rounded-xl bg-brand/10 border border-brand/30 flex items-center justify-between text-xs text-foreground">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="size-4 text-brand shrink-0" />
+                  <div>
+                    <span className="font-bold">
+                      {isCraftingBatch
+                        ? "Recruiter emails pulled! Crafting tailored pitches..."
+                        : `Pulled recruiter emails from your job search (${selectedJobStates.filter((s) => s.contact?.status === "found").length} verified contacts)`}
+                    </span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {isCraftingBatch
+                        ? "Generating evidence-backed personalizations from your candidate profile..."
+                        : "Review your tailored pitches below and click to create Gmail drafts or send directly."}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold bg-brand/20 text-brand px-2 py-0.5 rounded-full shrink-0">
+                  {selectedJobStates.filter((s) => s.contact?.status === "found").length} / {selectedJobStates.length} Ready
+                </span>
+              </div>
+
               {/* Tone Switcher Bar */}
               <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-border/40">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -693,8 +742,8 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                                       <UserCheck className="size-3" />
                                       {contact.fullName} ({contact.title})
                                     </span>
-                                    <span className="text-muted-foreground font-mono text-[10px]">
-                                      &lt;{contact.email}&gt;
+                                    <span className="text-foreground bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded font-mono text-[10px]">
+                                      {contact.email}
                                     </span>
                                   </>
                                 ) : (
