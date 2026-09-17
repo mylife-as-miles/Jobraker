@@ -40,9 +40,16 @@ import {
   buildSubjectSenderQuery,
   decodeBase64Url,
   getComposioGmailConnection,
+  getHeader,
   getMessageEpochMs,
   gmailNotConnectedResult,
   isMessageWithinCutoff,
+  messageBodyPreview,
+  messageDate,
+  messageFrom,
+  messageSubject,
+  payloadToPlainPreview,
+  stripHtml,
   type ComposioGmailMessage,
   type GmailPayload,
   type GmailSendAsIdentity,
@@ -122,63 +129,15 @@ function decodeBase64Url(data?: string) {
   }
 }
 
-function stripHtml(value: string) {
-  return value
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function payloadToPlainPreview(
-  payload: GmailPayload | undefined,
-  maxChars: number,
-) {
-  if (!payload) return "";
-  const chunks: string[] = [];
-  function visit(part: GmailPayload) {
-    const mimeType = (part.mimeType || "").toLowerCase();
-    const decoded = decodeBase64Url(part.body?.data);
-    if (decoded) {
-      if (mimeType.includes("text/html")) chunks.push(stripHtml(decoded));
-      else if (!mimeType || mimeType.includes("text/plain")) {
-        chunks.push(decoded);
-      }
-    }
-    for (const child of part.parts || []) visit(child);
-  }
-  visit(payload);
-  return chunks.join("\n").replace(/\s+\n/g, "\n").trim().slice(0, maxChars);
-}
-
-export function getHeader(payload: GmailPayload | undefined, name: string) {
-  const target = name.toLowerCase();
-  return payload?.headers?.find((h) => h.name?.toLowerCase() === target)
-    ?.value ?? "";
-}
-
-/** Prefers Composio's pre-extracted fields, falling back to raw payload parsing. */
-function messageSubject(message: ComposioGmailMessage) {
-  return message.subject || getHeader(message.payload, "Subject");
-}
-
-function messageFrom(message: ComposioGmailMessage) {
-  return message.from || getHeader(message.payload, "From");
-}
-
-function messageDate(message: ComposioGmailMessage) {
-  return message.date || getHeader(message.payload, "Date");
-}
-
-function messageBodyPreview(message: ComposioGmailMessage, maxChars = 1200) {
-  const fromPayload = payloadToPlainPreview(message.payload, maxChars);
-  if (fromPayload) return fromPayload;
-  const text = message.messageText || "";
-  return stripHtml(text).slice(0, maxChars);
-}
+export {
+  getHeader,
+  payloadToPlainPreview,
+  messageSubject,
+  messageFrom,
+  messageDate,
+  messageBodyPreview,
+  stripHtml,
+};
 
 /* -------------------------------- guardrails -------------------------------- */
 

@@ -42,6 +42,12 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/export function buildSubjectSenderQuery/);
       expect(composioGmail).toMatch(/export function decodeBase64Url/);
       expect(composioGmail).toMatch(/export function isMessageWithinCutoff/);
+      expect(composioGmail).toMatch(/export function getHeader/);
+      expect(composioGmail).toMatch(/export function payloadToPlainPreview/);
+      expect(composioGmail).toMatch(/export function messageSubject/);
+      expect(composioGmail).toMatch(/export function messageFrom/);
+      expect(composioGmail).toMatch(/export function messageDate/);
+      expect(composioGmail).toMatch(/export function stripHtml/);
     });
 
     it("handles large listings in data_preview.messages (Pitfall 2)", () => {

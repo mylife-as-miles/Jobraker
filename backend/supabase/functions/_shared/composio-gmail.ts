@@ -336,6 +336,64 @@ export function extractBodyFromPayload(payload?: GmailPayload): { text: string; 
   return { text, html };
 }
 
+export function stripHtml(value: string): string {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function getHeader(payload: GmailPayload | undefined, name: string): string {
+  const target = name.toLowerCase();
+  return payload?.headers?.find((h) => h.name?.toLowerCase() === target)
+    ?.value ?? "";
+}
+
+export function payloadToPlainPreview(
+  payload: GmailPayload | undefined,
+  maxChars: number,
+): string {
+  if (!payload) return "";
+  const chunks: string[] = [];
+  function visit(part: GmailPayload) {
+    const mimeType = (part.mimeType || "").toLowerCase();
+    const decoded = decodeBase64Url(part.body?.data);
+    if (decoded) {
+      if (mimeType.includes("text/html")) chunks.push(stripHtml(decoded));
+      else if (!mimeType || mimeType.includes("text/plain")) {
+        chunks.push(decoded);
+      }
+    }
+    for (const child of part.parts || []) visit(child);
+  }
+  visit(payload);
+  return chunks.join("\n").replace(/\s+\n/g, "\n").trim().slice(0, maxChars);
+}
+
+/** Prefers Composio's pre-extracted fields, falling back to raw payload parsing. */
+export function messageSubject(message: ComposioGmailMessage): string {
+  return message.subject || getHeader(message.payload, "Subject");
+}
+
+export function messageFrom(message: ComposioGmailMessage): string {
+  return message.from || getHeader(message.payload, "From");
+}
+
+export function messageDate(message: ComposioGmailMessage): string {
+  return message.date || getHeader(message.payload, "Date");
+}
+
+export function messageBodyPreview(message: ComposioGmailMessage, maxChars = 1200): string {
+  const fromPayload = payloadToPlainPreview(message.payload, maxChars);
+  if (fromPayload) return fromPayload;
+  const text = message.messageText || "";
+  return stripHtml(text).slice(0, maxChars);
+}
+
 export function getMessageEpochMs(message: ComposioGmailMessage): number | null {
   if (message.internalDate) {
     const parsed = parseInt(message.internalDate, 10);
