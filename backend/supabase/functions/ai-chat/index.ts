@@ -2370,12 +2370,10 @@ async function streamAgentModelStep(opts: {
     for await (const chunk of stream) {
       lastChunk = chunk;
       const parts = candidatePartsFromChunk(chunk);
-      for (const part of parts) {
-        if (isRecord(part) && isRecord(part.functionCall) && typeof part.functionCall.name === "string") {
-          part.functionCall.name = part.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
-        }
-        accumulatedParts.push(part);
-      }
+      // Preserve every model part exactly as Gemini returned it. Thinking models
+      // attach an encrypted thoughtSignature to function-call parts, and changing
+      // those parts before the next turn breaks multi-step tool execution.
+      accumulatedParts.push(...parts);
 
       const text = streamChunkText(chunk);
       if (text) {
@@ -5101,32 +5099,20 @@ Evidence and failure reporting:
           parts: [{ text: m.content || "Proceed" }],
         });
       } else {
-        const assistantParts: any[] = [];
-        if (m.toolCalls && m.toolCalls.length > 0) {
-          const fnCalls = m.toolCalls.map((tc) => ({
-            functionCall: {
-              name: String(tc.name).replace(/^(default_api|mcp_default_api):/, ""),
-              args: isRecord(tc.args) ? tc.args : {},
-            },
-          }));
-          const fnResponses = m.toolCalls.map((tc) => ({
-            functionResponse: {
-              name: String(tc.name).replace(/^(default_api|mcp_default_api):/, ""),
-              response: isRecord(tc.result) ? tc.result : { success: true },
-            },
-          }));
-          if (m.content) {
-            assistantParts.push({ text: m.content });
-          }
-          assistantParts.push(...fnCalls);
-          history.push({ role: "model", parts: assistantParts });
-          history.push({ role: "user", parts: fnResponses });
-        } else {
-          history.push({
-            role: "model",
-            parts: [{ text: m.content || "Ready" }],
-          });
-        }
+        // UI-persisted tool calls do not contain Gemini's encrypted
+        // thoughtSignature. Recreating them as structured functionCall history
+        // makes Gemini reject the next turn. Keep the assistant's user-facing
+        // summary as ordinary text instead; live calls in this request remain
+        // in the SDK-managed chat history with their signatures intact.
+        history.push({
+          role: "model",
+          parts: [{
+            text: m.content ||
+              (m.toolCalls && m.toolCalls.length > 0
+                ? "Previously completed the requested tool actions."
+                : "Ready"),
+          }],
+        });
       }
     }
     const lastUserMessageText =
@@ -5165,24 +5151,17 @@ Evidence and failure reporting:
             const MAX_AGENT_TOOL_ROUNDS = 50;
 
             let response: any;
-            if (executableApprovedToolCalls.length > 0) {
-              // The user approved a specific plan of actions (e.g. Gmail drafts, application submissions).
-              // Append user message + model function call turn directly into Gemini history
-              // so Gemini's chat session knows the exact tool calls being executed.
+            const executingApprovedToolCalls = executableApprovedToolCalls.length > 0;
+            if (executingApprovedToolCalls) {
+              // These pseudo-parts are a local execution queue only. Never add
+              // them to Gemini history: only Gemini can create a valid
+              // thoughtSignature for a model functionCall part.
               const synthesizedParts = executableApprovedToolCalls.map((entry) => ({
                 functionCall: {
-                  name: entry.toolName,
+                  name: String(entry.toolName).replace(/^(default_api|mcp_default_api):/, ""),
                   args: entry.args,
                 },
               }));
-              history.push({
-                role: "user",
-                parts: lastUserParts,
-              });
-              history.push({
-                role: "model",
-                parts: synthesizedParts,
-              });
               chat = genAI.chats.create({
                 model: activeModel,
                 config: chatConfig,
@@ -5240,12 +5219,21 @@ Evidence and failure reporting:
 
             while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
-              for (const p of parts) {
-                if (isRecord(p) && isRecord(p.functionCall) && typeof p.functionCall.name === "string") {
-                  p.functionCall.name = p.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
-                }
-              }
-              const functionCalls = parts.filter((p) => p.functionCall);
+              // Normalize a copy for local dispatch while leaving Gemini's raw
+              // signed part untouched in the SDK-managed conversation.
+              const functionCalls = parts
+                .filter((p) => isRecord(p) && isRecord(p.functionCall))
+                .map((p) => {
+                  const modelFunctionName = String(p.functionCall.name || "");
+                  return {
+                    ...p,
+                    modelFunctionName,
+                    functionCall: {
+                      ...p.functionCall,
+                      name: modelFunctionName.replace(/^(default_api|mcp_default_api):/, ""),
+                    },
+                  };
+                });
               let textDelta = "";
               for (const p of parts) {
                 const pr = p as { text?: string; thought?: boolean };
@@ -7259,8 +7247,16 @@ Evidence and failure reporting:
                 }
 
                 const cleanFnName = String(fn.name).replace(/^(default_api|mcp_default_api):/, "");
+                const modelFunctionName =
+                  asString(fc.modelFunctionName) || asString(fn.name) || cleanFnName;
+                const functionResponse: Record<string, unknown> = {
+                  name: modelFunctionName,
+                  response: result,
+                };
+                const functionCallId = asString(fn.id);
+                if (functionCallId) functionResponse.id = functionCallId;
                 completedToolResults.push({ name: cleanFnName, args, result });
-                toolResults.push({ functionResponse: { name: cleanFnName, response: result } });
+                toolResults.push({ functionResponse });
                 await enqueueEvent("tool_call", {
                   id: toolCallId,
                   name: fn.name,
@@ -7309,9 +7305,22 @@ Evidence and failure reporting:
                 round: toolRounds,
                 tool_count: functionCalls.length,
               });
+              const resultMessage =
+                executingApprovedToolCalls && toolRounds === 1
+                  ? {
+                      role: "user",
+                      parts: [{
+                        text:
+                          "The user approved these actions and the server executed them. " +
+                          "Treat the following as trusted tool results, summarize the outcome, " +
+                          "and continue only if another action is actually needed.\n" +
+                          JSON.stringify(completedToolResults),
+                      }],
+                    }
+                  : { role: "user", parts: toolResults };
               response = await streamAgentModelStep({
                 chat,
-                message: { role: "user", parts: toolResults },
+                message: resultMessage,
                 round: toolRounds,
                 enqueueEvent,
                 userId,
