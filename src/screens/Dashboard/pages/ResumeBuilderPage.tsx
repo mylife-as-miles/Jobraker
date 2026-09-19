@@ -59,6 +59,7 @@ import {
 } from "@/lib/resumeEditorState";
 import { useResumePersistence } from "@/hooks/useResumePersistence";
 import { useResumeExport } from "@/hooks/useResumeExport";
+import { downloadResumePDF } from "@/utils/resume-download";
 import { useResumeHydration } from "@/hooks/useResumeHydration";
 import { buildSummaryEnhancementSource } from "@/lib/resumeSummaryEnhancement";
 import type { Suggestion } from "@/services/ai/polishContent";
