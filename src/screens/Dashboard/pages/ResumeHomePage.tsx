@@ -192,6 +192,8 @@ export const ResumeHomePage = () => {
           {/* View Toggle */}
           <div className='product-control-surface'>
             <button
+              type='button'
+              aria-label='Grid view'
               onClick={() => setViewMode("grid")}
               className={
                 viewMode === "grid"
@@ -202,6 +204,8 @@ export const ResumeHomePage = () => {
               <Grid className='w-4 h-4' />
             </button>
             <button
+              type='button'
+              aria-label='List view'
               onClick={() => setViewMode("list")}
               className={
                 viewMode === "list"
