@@ -301,7 +301,7 @@ function isToolApproved(
 
   // If the user's latest message is explicitly confirming or approving
   const trimmed = lastUserText.trim().toLowerCase();
-  if (/^(approved|approve|yes|continue|proceed|go ahead|confirm)/i.test(trimmed)) {
+  if (/^(approved|approve|yes|continue|proceed|go ahead|confirm|send(?: it| them)?)/i.test(trimmed)) {
     if (approvedToolCallKeys.size > 0 || trimmed.includes("approve")) {
       return true;
     }

@@ -3632,7 +3632,7 @@ export const ChatPage = () => {
 
     const userTextTrimmed = content.trim().toLowerCase();
     const isApprovalIntent =
-      /^(approved|approve|yes|continue|proceed|confirm|go ahead)/i.test(userTextTrimmed);
+      /^(approved|approve|yes|continue|proceed|confirm|go ahead|send(?: it| them)?)/i.test(userTextTrimmed);
 
     let effectiveMessages = currentMessages;
     let pendingStepsToExecute: AgentApprovalStep[] = [];
