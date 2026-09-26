@@ -76,6 +76,7 @@ import {
   type WorkEligibility,
 } from "../../../services/profile/workEligibility";
 import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
+import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
 import {
   evaluateJobFit,
   type EvaluateJobFitResponse,
@@ -1430,6 +1431,12 @@ export const JobPage = (): JSX.Element => {
   const [aiEvaluation, setAiEvaluation] =
     useState<EvaluateJobFitResponse | null>(null);
   const [forceSubmit, setForceSubmit] = useState(false);
+  // Open the job-fit prompt whenever a result arrives, so it is not missed at
+  // the bottom of the auto-apply modal.
+  const [decisionPromptOpen, setDecisionPromptOpen] = useState(false);
+  useEffect(() => {
+    setDecisionPromptOpen(Boolean(aiEvaluation) && autoApplyStep === 2);
+  }, [aiEvaluation, autoApplyStep]);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -8513,6 +8520,31 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
             </Modal>
           );
         })()}
+      <AutoApplyDecisionPrompt
+        open={decisionPromptOpen}
+        onOpenChange={setDecisionPromptOpen}
+        evaluation={aiEvaluation}
+        resumeMismatch={
+          resumeIdentityMismatch
+            ? { resumeName: String(selectedResumeCandidateName), profileName: profileFullName ?? "" }
+            : null
+        }
+        fixDisabled={generatingDraft || evaluatingJob || !canAutoFixDecisionBoundary}
+        fixing={generatingDraft}
+        onFixWithDraft={() => {
+          setDecisionPromptOpen(false);
+          void handleDecisionBoundaryAutoFix();
+        }}
+        onEditProfile={() => {
+          setDecisionPromptOpen(false);
+          setResumeDialogOpen(false);
+        }}
+        onProceedAnyway={() => {
+          setDecisionPromptOpen(false);
+          setForceSubmit(true);
+          setAiEvaluation(null);
+        }}
+      />
       <WorkEligibilityDialog
         open={workEligibilityDialogOpen}
         onOpenChange={setWorkEligibilityDialogOpen}
