@@ -133,9 +133,12 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const rtrvrWebhookUrl = typeof rtrvrQueueParams.rtrvrWebhookUrl === "string"
       ? rtrvrQueueParams.rtrvrWebhookUrl.trim()
       : "";
-    const rtrvrWebhookSecret = typeof rtrvrQueueParams.rtrvrWebhookSecret === "string"
-      ? rtrvrQueueParams.rtrvrWebhookSecret.trim()
-      : "";
+    // Read the secret from env. It used to be persisted on the row, which any
+    // user can SELECT. The row value is only a fallback for already-queued rows.
+    const rtrvrWebhookSecret = (Deno.env.get("RTRVR_WEBHOOK_SECRET") || "").trim() ||
+      (typeof rtrvrQueueParams.rtrvrWebhookSecret === "string"
+        ? rtrvrQueueParams.rtrvrWebhookSecret.trim()
+        : "");
     // Per the RTRVR API reference, callbacks are registered with a `webhooks`
     // array; the webhooks guide additionally documents a flat `webhookUrl`
     // shorthand. Send both -- whichever the deployed API version ignores is
@@ -147,7 +150,11 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
           {
             url: rtrvrWebhookUrl,
             events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
-            ...(rtrvrWebhookSecret ? { secret: rtrvrWebhookSecret } : {}),
+            // `auth` bearer matches what the automation worker's /webhooks/rtrvr
+            // verifies (and what its own requestBuilder registers).
+            ...(rtrvrWebhookSecret
+              ? { secret: rtrvrWebhookSecret, auth: { type: "bearer", token: rtrvrWebhookSecret } }
+              : {}),
           },
         ],
       }

@@ -77,8 +77,10 @@ export function buildRtrvrApplicationRequest(
       ]
     : undefined;
 
+  // The secret is no longer persisted on the application row, so fall back to env.
+  const webhookSecret = input.rtrvrWebhookSecret || process.env.RTRVR_WEBHOOK_SECRET?.trim() || null;
   const webhooks =
-    input.rtrvrWebhookUrl && input.rtrvrWebhookSecret
+    input.rtrvrWebhookUrl && webhookSecret
       ? [
           {
             url: input.rtrvrWebhookUrl,
@@ -88,7 +90,7 @@ export function buildRtrvrApplicationRequest(
               "rtrvr.execution.cancelled",
               "rtrvr.execution.requires_input",
             ],
-            auth: { type: "bearer" as const, token: input.rtrvrWebhookSecret },
+            auth: { type: "bearer" as const, token: webhookSecret },
           },
         ]
       : undefined;

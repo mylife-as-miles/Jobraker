@@ -1409,7 +1409,9 @@ Deno.serve(async (req) => {
       preferExtension: preferRtrvrExtension,
       selectedDeviceId: selectedRtrvrDeviceId,
       rtrvrWebhookUrl,
-      rtrvrWebhookSecret: Deno.env.get("RTRVR_WEBHOOK_SECRET") || null,
+      // Never persist the webhook secret on the row: users can SELECT their own
+      // applications. Runners read RTRVR_WEBHOOK_SECRET from env instead.
+      rtrvrWebhookSecret: null,
       metadata: {
         source: "apply-to-jobs",
         jobId: jobContext.job_id,
