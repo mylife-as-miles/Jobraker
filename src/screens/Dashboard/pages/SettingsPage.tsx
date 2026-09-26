@@ -64,6 +64,7 @@ import { useAppearance } from "../../../providers/AppearanceProvider";
 import { setThemeToggleOrigin } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import { AnswerBankPanel } from "../components/AnswerBankPanel";
+import { WorkEligibilityCard } from "../../../components/WorkEligibilityCard";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import {
@@ -4866,7 +4867,12 @@ export const SettingsPage = (): JSX.Element => {
         );
 
       case "answer-bank":
-        return <AnswerBankPanel />;
+        return (
+          <div className='space-y-4'>
+            <WorkEligibilityCard />
+            <AnswerBankPanel />
+          </div>
+        );
 
       case "support":
         return (

@@ -71,6 +71,12 @@ import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import {
+  fetchWorkEligibility,
+  isWorkEligibilityComplete,
+  type WorkEligibility,
+} from "../../../services/profile/workEligibility";
+import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
+import {
   evaluateJobFit,
   type EvaluateJobFitResponse,
 } from "../../../services/ai/evaluateJobFit";
@@ -1320,6 +1326,8 @@ export const JobPage = (): JSX.Element => {
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
+  const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
+  const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
   const [concurrencyInfo, setConcurrencyInfo] = useState<{
     activeRuns: number;
     totalLimit: number;
@@ -3576,6 +3584,18 @@ export const JobPage = (): JSX.Element => {
           link: "/dashboard/billing",
         });
         return;
+      }
+
+      // Autopilot can only submit when the critical eligibility answers are
+      // saved; otherwise the backend downgrades every run to a draft. Ask once.
+      // A null result means the answers could not be read: do not block.
+      if (!saveAsDraftOnly && autoSubmitApplications) {
+        const eligibility = await fetchWorkEligibility().catch(() => null);
+        if (eligibility && !isWorkEligibilityComplete(eligibility)) {
+          setWorkEligibility(eligibility);
+          setWorkEligibilityDialogOpen(true);
+          return;
+        }
       }
 
       if (!saveAsDraftOnly) {
@@ -8493,6 +8513,16 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
             </Modal>
           );
         })()}
+      <WorkEligibilityDialog
+        open={workEligibilityDialogOpen}
+        onOpenChange={setWorkEligibilityDialogOpen}
+        initialValue={workEligibility}
+        description='Autopilot needs these answers to submit applications for you. You only answer once, and can change them later in Settings.'
+        onSaved={(saved) => {
+          setWorkEligibility(saved);
+          void applyAllJobs(false);
+        }}
+      />
       <ConcurrencyLimitModal
         open={concurrencyModalOpen}
         onOpenChange={setConcurrencyModalOpen}
