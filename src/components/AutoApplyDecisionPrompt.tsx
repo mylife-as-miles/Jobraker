@@ -45,7 +45,7 @@ export function AutoApplyDecisionPrompt({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='w-[calc(100vw-1rem)] max-w-[520px] max-h-[calc(100dvh-1rem)] overflow-y-auto'>
+      <DialogContent overlayClassName='z-[10000]' className='z-[10000] w-[calc(100vw-1rem)] max-w-[520px] max-h-[calc(100dvh-1rem)] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <AlertTriangle className='h-5 w-5 text-brand' aria-hidden />
