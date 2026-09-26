@@ -576,6 +576,24 @@ Deno.serve(async (req) => {
       .eq("id", userId)
       .maybeSingle();
 
+    // Separate query on purpose: if these columns are missing (migration not
+    // applied yet) only this lookup fails and we fall back to "not answered",
+    // instead of nulling out the main profile row above.
+    const { data: eligibilityRow } = await serviceClient
+      .from("profiles")
+      .select("work_authorized,requires_visa_sponsorship,desired_salary,has_security_clearance,willing_to_relocate")
+      .eq("id", userId)
+      .maybeSingle();
+    const profileBool = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
+    const profileWorkAuthorized = profileBool(eligibilityRow?.work_authorized);
+    const profileRequiresSponsorship = profileBool(eligibilityRow?.requires_visa_sponsorship);
+    const profileHasClearance = profileBool(eligibilityRow?.has_security_clearance);
+    const profileWillingToRelocate = profileBool(eligibilityRow?.willing_to_relocate);
+    const profileDesiredSalary =
+      typeof eligibilityRow?.desired_salary === "string" && eligibilityRow.desired_salary.trim()
+        ? eligibilityRow.desired_salary.trim()
+        : null;
+
     const [
       { data: experienceRows },
       { data: educationRows },
@@ -1162,16 +1180,18 @@ Deno.serve(async (req) => {
     const unresolvedRequirements: ApplicationRequirement[] = [];
 
     // 1. Work authorization
-    const workAuthVal =
+    // Request value wins; otherwise the answer saved on the profile.
+    const requestWorkAuthVal =
       userInput?.work_authorization?.authorized ??
       (typeof userInput?.authorized_to_work === "boolean" ? userInput.authorized_to_work : null);
+    const workAuthVal = requestWorkAuthVal ?? profileWorkAuthorized;
     eligibilityAnswers.push({
       questionKey: "work_authorization",
       questionText: "Are you legally authorized to work in this job's jurisdiction?",
       value: workAuthVal,
       category: "work_authorization",
       provenance: {
-        source: workAuthVal !== null ? "user_answer" : "candidate_profile",
+        source: requestWorkAuthVal !== null ? "user_answer" : "candidate_profile",
       },
       confidence: workAuthVal !== null ? 1.0 : 0.0,
       mutable: false,
@@ -1179,17 +1199,18 @@ Deno.serve(async (req) => {
     });
 
     // 2. Visa sponsorship
-    const sponsorshipVal =
+    const requestSponsorshipVal =
       userInput?.visa_sponsorship ??
       userInput?.requires_sponsorship ??
       null;
+    const sponsorshipVal = requestSponsorshipVal ?? profileRequiresSponsorship;
     eligibilityAnswers.push({
       questionKey: "visa_sponsorship",
       questionText: "Will you now or in the future require visa sponsorship?",
       value: sponsorshipVal,
       category: "sponsorship",
       provenance: {
-        source: sponsorshipVal !== null ? "user_answer" : "candidate_profile",
+        source: requestSponsorshipVal !== null ? "user_answer" : "candidate_profile",
       },
       confidence: sponsorshipVal !== null ? 1.0 : 0.0,
       mutable: false,
@@ -1197,7 +1218,9 @@ Deno.serve(async (req) => {
     });
 
     // 3. Desired compensation / salary
-    const salaryVal = jobContext.salary || userInput?.desired_salary || null;
+    // The user's own answer comes first; the job's posted salary stays as the
+    // last fallback so users without a saved answer behave as before.
+    const salaryVal = userInput?.desired_salary || profileDesiredSalary || jobContext.salary || null;
     eligibilityAnswers.push({
       questionKey: "desired_salary",
       questionText: "What is your target or minimum salary compensation requirement?",
@@ -1212,7 +1235,7 @@ Deno.serve(async (req) => {
     });
 
     // 4. Security clearance
-    const clearanceVal = userInput?.security_clearance ?? null;
+    const clearanceVal = userInput?.security_clearance ?? profileHasClearance;
     eligibilityAnswers.push({
       questionKey: "security_clearance",
       questionText: "Do you hold an active government or defense security clearance?",
@@ -1227,7 +1250,7 @@ Deno.serve(async (req) => {
     });
 
     // 5. Relocation
-    const relocationVal = userInput?.willing_to_relocate ?? null;
+    const relocationVal = userInput?.willing_to_relocate ?? profileWillingToRelocate;
     eligibilityAnswers.push({
       questionKey: "relocation",
       questionText: "Are you willing to relocate for this role if required?",
@@ -1409,7 +1432,9 @@ Deno.serve(async (req) => {
       preferExtension: preferRtrvrExtension,
       selectedDeviceId: selectedRtrvrDeviceId,
       rtrvrWebhookUrl,
-      rtrvrWebhookSecret: Deno.env.get("RTRVR_WEBHOOK_SECRET") || null,
+      // Never persist the webhook secret on the row: users can SELECT their own
+      // applications. Runners read RTRVR_WEBHOOK_SECRET from env instead.
+      rtrvrWebhookSecret: null,
       metadata: {
         source: "apply-to-jobs",
         jobId: jobContext.job_id,

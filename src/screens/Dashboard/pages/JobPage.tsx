@@ -71,6 +71,13 @@ import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import {
+  fetchWorkEligibility,
+  isWorkEligibilityComplete,
+  type WorkEligibility,
+} from "../../../services/profile/workEligibility";
+import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
+import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
+import {
   evaluateJobFit,
   type EvaluateJobFitResponse,
 } from "../../../services/ai/evaluateJobFit";
@@ -1320,6 +1327,8 @@ export const JobPage = (): JSX.Element => {
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
+  const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
+  const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
   const [concurrencyInfo, setConcurrencyInfo] = useState<{
     activeRuns: number;
     totalLimit: number;
@@ -1422,6 +1431,12 @@ export const JobPage = (): JSX.Element => {
   const [aiEvaluation, setAiEvaluation] =
     useState<EvaluateJobFitResponse | null>(null);
   const [forceSubmit, setForceSubmit] = useState(false);
+  // Open the job-fit prompt whenever a result arrives, so it is not missed at
+  // the bottom of the auto-apply modal.
+  const [decisionPromptOpen, setDecisionPromptOpen] = useState(false);
+  useEffect(() => {
+    setDecisionPromptOpen(Boolean(aiEvaluation) && autoApplyStep === 2);
+  }, [aiEvaluation, autoApplyStep]);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -3576,6 +3591,18 @@ export const JobPage = (): JSX.Element => {
           link: "/dashboard/billing",
         });
         return;
+      }
+
+      // Autopilot can only submit when the critical eligibility answers are
+      // saved; otherwise the backend downgrades every run to a draft. Ask once.
+      // A null result means the answers could not be read: do not block.
+      if (!saveAsDraftOnly && autoSubmitApplications) {
+        const eligibility = await fetchWorkEligibility().catch(() => null);
+        if (eligibility && !isWorkEligibilityComplete(eligibility)) {
+          setWorkEligibility(eligibility);
+          setWorkEligibilityDialogOpen(true);
+          return;
+        }
       }
 
       if (!saveAsDraftOnly) {
@@ -8493,6 +8520,41 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
             </Modal>
           );
         })()}
+      <AutoApplyDecisionPrompt
+        open={decisionPromptOpen}
+        onOpenChange={setDecisionPromptOpen}
+        evaluation={aiEvaluation}
+        resumeMismatch={
+          resumeIdentityMismatch
+            ? { resumeName: String(selectedResumeCandidateName), profileName: profileFullName ?? "" }
+            : null
+        }
+        fixDisabled={generatingDraft || evaluatingJob || !canAutoFixDecisionBoundary}
+        fixing={generatingDraft}
+        onFixWithDraft={() => {
+          setDecisionPromptOpen(false);
+          void handleDecisionBoundaryAutoFix();
+        }}
+        onEditProfile={() => {
+          setDecisionPromptOpen(false);
+          setResumeDialogOpen(false);
+        }}
+        onProceedAnyway={() => {
+          setDecisionPromptOpen(false);
+          setForceSubmit(true);
+          setAiEvaluation(null);
+        }}
+      />
+      <WorkEligibilityDialog
+        open={workEligibilityDialogOpen}
+        onOpenChange={setWorkEligibilityDialogOpen}
+        initialValue={workEligibility}
+        description='Autopilot needs these answers to submit applications for you. You only answer once, and can change them later in Settings.'
+        onSaved={(saved) => {
+          setWorkEligibility(saved);
+          void applyAllJobs(false);
+        }}
+      />
       <ConcurrencyLimitModal
         open={concurrencyModalOpen}
         onOpenChange={setConcurrencyModalOpen}

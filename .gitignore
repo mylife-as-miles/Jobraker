@@ -67,3 +67,7 @@ dist-ssr
 .vercel
 .env*
 .devpilot/
+
+# Private takeover notes (contain unfixed security findings)
+JOBRAKER_ANALYSIS.md
+AUTO_APPLY_TODO.md
