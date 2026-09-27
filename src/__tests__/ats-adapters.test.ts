@@ -122,6 +122,22 @@ describe("Greenhouse adapter", () => {
     expect(qs.every((q) => q.required)).toBe(true);
   });
 
+  it("stops detail requests after the deadline", async () => {
+    const calls: string[] = [];
+    const fetchJson = async (url: string) => {
+      calls.push(url);
+      return url.includes("questions=true") ? detail : list;
+    };
+    const jobs = await greenhouseAdapter.fetchJobs(
+      { ats: "greenhouse", boardToken: "x", name: "X" },
+      fetchJson,
+      { deadline: Date.now() - 1 },
+    );
+    expect(jobs).toHaveLength(2);
+    expect(jobs.every((j) => j.questions === undefined)).toBe(true);
+    expect(calls.filter((u) => u.includes("questions=true"))).toHaveLength(0);
+  });
+
   it("fetches questions only for changed jobs", async () => {
     const calls: string[] = [];
     const fetchJson = async (url: string) => {

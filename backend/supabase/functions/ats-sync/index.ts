@@ -6,7 +6,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ATS_ADAPTERS, type AtsName, type NormalizedJob } from "../../shared/ats/index.ts";
 
-const TIME_BUDGET_MS = 300_000; // stop starting new companies well before the 400 s limit
+// The Supabase gateway drops any request idle for 150 s (on every plan), so
+// the response must go out well before that: no new company after 90 s, and
+// per-job detail requests stop at 100 s (the next sync continues them).
+const TIME_BUDGET_MS = 90_000;
+const DETAIL_DEADLINE_MS = 100_000;
 const FETCH_TIMEOUT_MS = 15_000;
 const UPSERT_CHUNK = 200;
 
@@ -53,12 +57,13 @@ const toRow = (job: NormalizedJob, companyId: string, ats: string, nowIso: strin
   countries: job.countries,
   department: job.department,
   employment_type: job.employmentType,
-  // Skipped details must not overwrite stored description/salary/URLs.
+  // URLs are always sent (apply_url is NOT NULL for new rows). Skipped
+  // details must not overwrite the stored description and salary.
+  apply_url: job.applyUrl,
+  job_url: job.jobUrl,
   ...(job.partial
     ? {}
     : {
-      apply_url: job.applyUrl,
-      job_url: job.jobUrl,
       description_text: job.descriptionText,
       salary_min: job.salaryMin,
       salary_max: job.salaryMax,
@@ -139,7 +144,7 @@ Deno.serve(async (req) => {
       const jobs = await adapter.fetchJobs(
         { ats: company.ats as AtsName, boardToken: company.board_token, name: company.name },
         fetchJson,
-        { unchanged, fetchText },
+        { unchanged, fetchText, deadline: started + DETAIL_DEADLINE_MS },
       );
 
       // Upsert rows grouped by their column set: a bulk upsert writes NULL

@@ -81,7 +81,8 @@ export const greenhouseAdapter: AtsAdapter = {
     for (let i = 0; i < jobs.length; i += CONCURRENCY) {
       const chunk = jobs.slice(i, i + CONCURRENCY);
       const results = await Promise.all(chunk.map(async (job) => {
-        if (options.unchanged?.(String(job.id), job?.updated_at ?? null)) {
+        const pastDeadline = options.deadline !== undefined && Date.now() > options.deadline;
+        if (pastDeadline || options.unchanged?.(String(job.id), job?.updated_at ?? null)) {
           return normalizeGreenhouseJob(job, company.name, undefined);
         }
         try {

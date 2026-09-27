@@ -74,7 +74,8 @@ export const smartRecruitersAdapter: AtsAdapter = {
     for (let i = 0; i < items.length; i += 6) {
       const chunk = items.slice(i, i + 6);
       out.push(...await Promise.all(chunk.map(async (item) => {
-        if (options.unchanged?.(String(item.id), item?.releasedDate ?? null)) {
+        const pastDeadline = options.deadline !== undefined && Date.now() > options.deadline;
+        if (pastDeadline || options.unchanged?.(String(item.id), item?.releasedDate ?? null)) {
           return { ...normalizeSmartRecruiters(item, null, company.name), partial: true };
         }
         const detail = await fetchJson(`${SR}/${id}/postings/${item.id}`).catch(() => null);

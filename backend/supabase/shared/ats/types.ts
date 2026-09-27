@@ -62,6 +62,9 @@ export type FetchJson = (url: string) => Promise<unknown>;
 export type FetchText = (url: string) => Promise<string>;
 
 export interface FetchJobsOptions {
+  // Epoch ms. After it, adapters stop per-job detail requests and return the
+  // remaining jobs without details; the next sync fills them in.
+  deadline?: number;
   // Needed by feeds that are XML/RSS rather than JSON (Teamtailor).
   fetchText?: FetchText;
   // True when a job is already stored with the same source update time and
