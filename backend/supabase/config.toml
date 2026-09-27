@@ -666,7 +666,10 @@ entrypoint = "./functions/skyvern-webhook/index.ts"
 
 [functions.sync-provider-status]
 enabled = true
-verify_jwt = true
+# Browser OPTIONS preflight carries no JWT, so the gateway rejected it and every
+# status sync from the app failed CORS. The handler verifies the bearer token
+# itself (auth.getUser) and only reads the caller's own applications.
+verify_jwt = false
 entrypoint = "./functions/sync-provider-status/index.ts"
 
 [functions.verify-payment]
