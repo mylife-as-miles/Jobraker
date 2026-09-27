@@ -258,3 +258,16 @@ describe("remaining platform adapters", () => {
     expect(job).toMatchObject({ remoteScope: "hybrid", countries: ["IN"], applyUrl: "https://axiosint.bamboohr.com/careers/324" });
   });
 });
+
+import { contentHash } from "../../backend/supabase/shared/ats/text";
+
+describe("contentHash", () => {
+  const row = { title: "A", apply_url: "u", questions: [{ label: "Why us?", required: true }], last_seen_at: "t1", status: "open" };
+  it("ignores sync bookkeeping and key order", () => {
+    expect(contentHash({ ...row, last_seen_at: "t2", status: "closed" })).toBe(contentHash(row));
+    expect(contentHash({ apply_url: "u", title: "A", questions: row.questions })).toBe(contentHash(row));
+  });
+  it("changes when nested question text changes", () => {
+    expect(contentHash({ ...row, questions: [{ label: "Why them?", required: true }] })).not.toBe(contentHash(row));
+  });
+});

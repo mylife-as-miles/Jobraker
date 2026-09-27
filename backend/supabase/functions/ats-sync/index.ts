@@ -4,7 +4,7 @@
 //
 // POST body (all optional): { "limit": 3, "companyIds": ["uuid", ...] }
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ATS_ADAPTERS, type AtsName, type NormalizedJob } from "../../shared/ats/index.ts";
+import { ATS_ADAPTERS, contentHash, type AtsName, type NormalizedJob } from "../../shared/ats/index.ts";
 
 // The Supabase gateway drops any request idle for 150 s (on every plan), so
 // the response must go out well before that: no new company after 90 s, and
@@ -12,7 +12,10 @@ import { ATS_ADAPTERS, type AtsName, type NormalizedJob } from "../../shared/ats
 const TIME_BUDGET_MS = 90_000;
 const DETAIL_DEADLINE_MS = 100_000;
 const FETCH_TIMEOUT_MS = 15_000;
-const UPSERT_CHUNK = 200;
+// Small batches: each row carries a long description and a search vector.
+const UPSERT_CHUNK = 50;
+const TOUCH_CHUNK = 300;
+
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -128,12 +131,20 @@ Deno.serve(async (req) => {
     }
 
     try {
-      // Existing jobs, so unchanged ones skip their per-job question request.
-      const { data: existing } = await supabase
-        .from("ats_jobs")
-        .select("external_id, source_updated_at, questions_known")
-        .eq("company_id", company.id);
-      const known = new Map((existing ?? []).map((r: any) => [r.external_id, r]));
+      // Existing jobs (paged: PostgREST returns at most 1,000 rows per call), so
+      // unchanged ones skip detail requests and database writes.
+      const existing: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("ats_jobs")
+          .select("external_id, source_updated_at, questions_known, content_hash")
+          .eq("company_id", company.id)
+          .range(from, from + 999);
+        if (error) throw new Error(`read existing failed: ${error.message}`);
+        existing.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      const known = new Map(existing.map((r: any) => [r.external_id, r]));
       const unchanged = (externalId: string, updatedAt: string | null) => {
         const row: any = known.get(externalId);
         const questionsOk = row?.questions_known || !QUESTION_PLATFORMS.has(company.ats);
@@ -147,14 +158,36 @@ Deno.serve(async (req) => {
         { unchanged, fetchText, deadline: started + DETAIL_DEADLINE_MS },
       );
 
-      // Upsert rows grouped by their column set: a bulk upsert writes NULL
-      // for columns a row lacks, so an unchanged job (no fresh questions or
-      // details) must never share a batch with fully fetched rows.
-      const rows = jobs.filter((j) => j.applyUrl && j.title).map((j) => toRow(j, company.id, company.ats, syncStartIso));
+      // Feeds can repeat a job (Rippling across pages, Workable per location);
+      // one upsert batch must not touch the same row twice.
+      const seen = new Set<string>();
+      const rows = jobs
+        .filter((j) => j.applyUrl && j.title)
+        .filter((j) => (seen.has(j.externalId) ? false : (seen.add(j.externalId), true)))
+        .map((j) => {
+          const row = toRow(j, company.id, company.ats, syncStartIso);
+          return { ...row, content_hash: contentHash(row) };
+        });
       const withQuestions = rows.filter((r) => "questions" in r);
-      const withoutQuestions = rows.filter((r) => !("questions" in r));
-      const groups = new Map<string, typeof rows>();
-      for (const row of rows) {
+
+      // Unchanged rows only get last_seen_at stamped (cheap, and the search
+      // vector is not recomputed); changed or new rows are upserted.
+      const changed = rows.filter((r) => known.get(r.external_id)?.content_hash !== r.content_hash);
+      const untouched = rows.filter((r) => known.get(r.external_id)?.content_hash === r.content_hash);
+      for (let i = 0; i < untouched.length; i += TOUCH_CHUNK) {
+        const { error } = await supabase
+          .from("ats_jobs")
+          .update({ last_seen_at: syncStartIso, status: "open", closed_at: null })
+          .eq("company_id", company.id)
+          .in("external_id", untouched.slice(i, i + TOUCH_CHUNK).map((r) => r.external_id));
+        if (error) throw new Error(`touch failed: ${error.message}`);
+      }
+
+      // Upsert grouped by column set: a bulk upsert writes NULL for columns a
+      // row lacks, so rows without fresh questions or details never share a
+      // batch with fully fetched rows.
+      const groups = new Map<string, typeof changed>();
+      for (const row of changed) {
         const signature = Object.keys(row).sort().join(",");
         groups.set(signature, [...(groups.get(signature) ?? []), row]);
       }
@@ -182,7 +215,7 @@ Deno.serve(async (req) => {
       }).eq("id", company.id);
       results.push({
         company: company.name, status: "ok", open: rows.length,
-        questionsFetched: withQuestions.length, unchanged: withoutQuestions.length,
+        questionsFetched: withQuestions.length, written: changed.length, unchanged: untouched.length,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -29,3 +29,4 @@ export const ATS_ADAPTERS: Record<AtsName, AtsAdapter> = {
 export * from "./types.ts";
 export { classifyQuestion } from "./questions.ts";
 export { classifyLocation } from "./location.ts";
+export { contentHash } from "./text.ts";
