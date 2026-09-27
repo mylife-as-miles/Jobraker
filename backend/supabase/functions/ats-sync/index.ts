@@ -13,8 +13,8 @@ const TIME_BUDGET_MS = 90_000;
 const DETAIL_DEADLINE_MS = 100_000;
 const FETCH_TIMEOUT_MS = 15_000;
 // Small batches: each row carries a long description and a search vector.
-const UPSERT_CHUNK = 50;
-const TOUCH_CHUNK = 300;
+const UPSERT_CHUNK = 25;
+const CLOSE_CHUNK = 200;
 
 
 const json = (status: number, body: unknown) =>
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
       for (let from = 0; ; from += 1000) {
         const { data, error } = await supabase
           .from("ats_jobs")
-          .select("external_id, source_updated_at, questions_known, content_hash")
+          .select("external_id, source_updated_at, questions_known, content_hash, status")
           .eq("company_id", company.id)
           .range(from, from + 999);
         if (error) throw new Error(`read existing failed: ${error.message}`);
@@ -170,18 +170,15 @@ Deno.serve(async (req) => {
         });
       const withQuestions = rows.filter((r) => "questions" in r);
 
-      // Unchanged rows only get last_seen_at stamped (cheap, and the search
-      // vector is not recomputed); changed or new rows are upserted.
-      const changed = rows.filter((r) => known.get(r.external_id)?.content_hash !== r.content_hash);
-      const untouched = rows.filter((r) => known.get(r.external_id)?.content_hash === r.content_hash);
-      for (let i = 0; i < untouched.length; i += TOUCH_CHUNK) {
-        const { error } = await supabase
-          .from("ats_jobs")
-          .update({ last_seen_at: syncStartIso, status: "open", closed_at: null })
-          .eq("company_id", company.id)
-          .in("external_id", untouched.slice(i, i + TOUCH_CHUNK).map((r) => r.external_id));
-        if (error) throw new Error(`touch failed: ${error.message}`);
-      }
+      // Only new, changed or reopened jobs are written. Unchanged open jobs are
+      // not touched at all: even a timestamp-only update rewrites the row and
+      // its indexes, which timed out on boards with thousands of jobs.
+      const isUnchanged = (r: (typeof rows)[number]) => {
+        const stored: any = known.get(r.external_id);
+        return stored?.content_hash === r.content_hash && stored?.status === "open";
+      };
+      const changed = rows.filter((r) => !isUnchanged(r));
+      const untouched = rows.filter(isUnchanged);
 
       // Upsert grouped by column set: a bulk upsert writes NULL for columns a
       // row lacks, so rows without fresh questions or details never share a
@@ -200,14 +197,18 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Anything not seen in this sync has been taken down by the employer.
-      const { error: closeError } = await supabase
-        .from("ats_jobs")
-        .update({ status: "closed", closed_at: syncStartIso })
-        .eq("company_id", company.id)
-        .eq("status", "open")
-        .lt("last_seen_at", syncStartIso);
-      if (closeError) throw new Error(`close failed: ${closeError.message}`);
+      // Open jobs missing from the feed have been taken down by the employer.
+      const toClose = existing
+        .filter((r: any) => r.status === "open" && !seen.has(r.external_id))
+        .map((r: any) => r.external_id);
+      for (let i = 0; i < toClose.length; i += CLOSE_CHUNK) {
+        const { error: closeError } = await supabase
+          .from("ats_jobs")
+          .update({ status: "closed", closed_at: syncStartIso })
+          .eq("company_id", company.id)
+          .in("external_id", toClose.slice(i, i + CLOSE_CHUNK));
+        if (closeError) throw new Error(`close failed: ${closeError.message}`);
+      }
 
       await supabase.from("ats_companies").update({
         last_synced_at: syncStartIso, last_sync_status: "ok", last_sync_error: null,
@@ -215,7 +216,7 @@ Deno.serve(async (req) => {
       }).eq("id", company.id);
       results.push({
         company: company.name, status: "ok", open: rows.length,
-        questionsFetched: withQuestions.length, written: changed.length, unchanged: untouched.length,
+        questionsFetched: withQuestions.length, written: changed.length, unchanged: untouched.length, closed: toClose.length,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
