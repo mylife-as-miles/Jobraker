@@ -29,6 +29,19 @@ async function fetchJson(url: string): Promise<unknown> {
   return res.json();
 }
 
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "JobRaker-ATS-Sync/1.0" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${new URL(url).host}`);
+  return res.text();
+}
+
+// Platforms whose per-job detail request carries questions; for the others
+// an unchanged source timestamp alone is enough to skip the detail request.
+const QUESTION_PLATFORMS = new Set(["greenhouse"]);
+
 const toRow = (job: NormalizedJob, companyId: string, ats: string, nowIso: string) => ({
   company_id: companyId,
   ats,
@@ -40,13 +53,18 @@ const toRow = (job: NormalizedJob, companyId: string, ats: string, nowIso: strin
   countries: job.countries,
   department: job.department,
   employment_type: job.employmentType,
-  apply_url: job.applyUrl,
-  job_url: job.jobUrl,
-  description_text: job.descriptionText,
-  salary_min: job.salaryMin,
-  salary_max: job.salaryMax,
-  salary_currency: job.salaryCurrency,
-  salary_period: job.salaryPeriod,
+  // Skipped details must not overwrite stored description/salary/URLs.
+  ...(job.partial
+    ? {}
+    : {
+      apply_url: job.applyUrl,
+      job_url: job.jobUrl,
+      description_text: job.descriptionText,
+      salary_min: job.salaryMin,
+      salary_max: job.salaryMax,
+      salary_currency: job.salaryCurrency,
+      salary_period: job.salaryPeriod,
+    }),
   posted_at: job.postedAt,
   source_updated_at: job.sourceUpdatedAt,
   status: "open",
@@ -113,22 +131,29 @@ Deno.serve(async (req) => {
       const known = new Map((existing ?? []).map((r: any) => [r.external_id, r]));
       const unchanged = (externalId: string, updatedAt: string | null) => {
         const row: any = known.get(externalId);
-        return Boolean(row && row.questions_known && updatedAt && row.source_updated_at &&
+        const questionsOk = row?.questions_known || !QUESTION_PLATFORMS.has(company.ats);
+        return Boolean(row && questionsOk && updatedAt && row.source_updated_at &&
           new Date(row.source_updated_at).getTime() === new Date(updatedAt).getTime());
       };
 
       const jobs = await adapter.fetchJobs(
         { ats: company.ats as AtsName, boardToken: company.board_token, name: company.name },
         fetchJson,
-        { unchanged },
+        { unchanged, fetchText },
       );
 
-      // Rows with and without fresh questions are upserted separately so an
-      // unchanged job never has its stored questions overwritten with null.
+      // Upsert rows grouped by their column set: a bulk upsert writes NULL
+      // for columns a row lacks, so an unchanged job (no fresh questions or
+      // details) must never share a batch with fully fetched rows.
       const rows = jobs.filter((j) => j.applyUrl && j.title).map((j) => toRow(j, company.id, company.ats, syncStartIso));
       const withQuestions = rows.filter((r) => "questions" in r);
       const withoutQuestions = rows.filter((r) => !("questions" in r));
-      for (const group of [withQuestions, withoutQuestions]) {
+      const groups = new Map<string, typeof rows>();
+      for (const row of rows) {
+        const signature = Object.keys(row).sort().join(",");
+        groups.set(signature, [...(groups.get(signature) ?? []), row]);
+      }
+      for (const group of groups.values()) {
         for (let i = 0; i < group.length; i += UPSERT_CHUNK) {
           const { error } = await supabase
             .from("ats_jobs")

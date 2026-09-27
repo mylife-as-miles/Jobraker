@@ -3,15 +3,27 @@ import { greenhouseAdapter } from "./greenhouse.ts";
 import { recruiteeAdapter } from "./recruitee.ts";
 import { ashbyAdapter } from "./ashby.ts";
 import { leverAdapter } from "./lever.ts";
+import {
+  bambooAdapter,
+  breezyAdapter,
+  ripplingAdapter,
+  smartRecruitersAdapter,
+  teamtailorAdapter,
+  workableAdapter,
+} from "./more-adapters.ts";
 
-// Adapters implemented so far. The remaining decided platforms
-// (SmartRecruiters, Workable, Teamtailor, Breezy, Rippling, BambooHR) are
-// added in later steps of Phase 1.
-export const ATS_ADAPTERS: Partial<Record<AtsName, AtsAdapter>> = {
+// All ten decided platforms (docs/JOB_SEARCH_REENGINEERING_PLAN.md).
+export const ATS_ADAPTERS: Record<AtsName, AtsAdapter> = {
   greenhouse: greenhouseAdapter,
   recruitee: recruiteeAdapter,
   ashby: ashbyAdapter,
   lever: leverAdapter,
+  smartrecruiters: smartRecruitersAdapter,
+  workable: workableAdapter,
+  teamtailor: teamtailorAdapter,
+  breezy: breezyAdapter,
+  rippling: ripplingAdapter,
+  bamboohr: bambooAdapter,
 };
 
 export * from "./types.ts";

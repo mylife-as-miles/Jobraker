@@ -46,6 +46,9 @@ export interface NormalizedJob {
   questions: NormalizedQuestion[] | null | undefined;
   postedAt: string | null;
   sourceUpdatedAt: string | null;
+  // True when per-job details were skipped (unchanged job): description,
+  // salary and URLs must not overwrite the stored values.
+  partial?: boolean;
 }
 
 export interface AtsCompanyRef {
@@ -56,7 +59,11 @@ export interface AtsCompanyRef {
 
 export type FetchJson = (url: string) => Promise<unknown>;
 
+export type FetchText = (url: string) => Promise<string>;
+
 export interface FetchJobsOptions {
+  // Needed by feeds that are XML/RSS rather than JSON (Teamtailor).
+  fetchText?: FetchText;
   // True when a job is already stored with the same source update time and
   // known questions, so per-job detail requests can be skipped.
   unchanged?: (externalId: string, sourceUpdatedAt: string | null) => boolean;

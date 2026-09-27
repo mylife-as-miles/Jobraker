@@ -175,3 +175,70 @@ describe("Recruitee adapter", () => {
     expect(job.remoteScope).toBe("worldwide");
   });
 });
+
+import {
+  normalizeSmartRecruiters,
+  normalizeWorkable,
+  parseTeamtailorRss,
+  normalizeBreezy,
+  normalizeRippling,
+  normalizeBamboo,
+  smartRecruitersAdapter,
+} from "../../backend/supabase/shared/ats/more-adapters";
+
+describe("remaining platform adapters", () => {
+  it("SmartRecruiters: remote US posting with compensation", () => {
+    const job = normalizeSmartRecruiters(
+      { id: "1", name: "Data Modeler", company: { identifier: "Exp", name: "Experian" }, location: { city: "Austin", country: "us", remote: true }, releasedDate: "2026-09-25T00:00:00Z" },
+      { applyUrl: "https://jobs.smartrecruiters.com/Exp/1-data", postingUrl: "https://jobs.smartrecruiters.com/Exp/1-data", compensation: { min: 100, max: 200, currency: "USD", period: "YEARLY" }, jobAd: { sections: { jobDescription: { text: "<p>Build</p>" } } } },
+      "X",
+    );
+    expect(job).toMatchObject({ remoteScope: "restricted", countries: ["US"], salaryMin: 100, salaryPeriod: "yearly", descriptionText: "Build" });
+  });
+
+  it("SmartRecruiters: unchanged postings skip the detail request and are partial", async () => {
+    const calls: string[] = [];
+    const fetchJson = async (url: string) => {
+      calls.push(url);
+      return { content: [{ id: "1", name: "A", company: { identifier: "Exp" }, location: {}, releasedDate: "t" }], totalFound: 1 };
+    };
+    const jobs = await smartRecruitersAdapter.fetchJobs({ ats: "smartrecruiters", boardToken: "Exp", name: "X" }, fetchJson, { unchanged: () => true });
+    expect(jobs[0].partial).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("Workable: telecommuting job in the US", () => {
+    const job = normalizeWorkable(
+      { shortcode: "AB12", title: "AE (Remote)", telecommuting: true, locations: [{ country: "United States", countryCode: "US" }], application_url: "https://apply.workable.com/j/AB12/apply", url: "https://apply.workable.com/j/AB12" },
+      "Hospitable",
+    );
+    expect(job).toMatchObject({ remoteScope: "restricted", countries: ["US"], applyUrl: "https://apply.workable.com/j/AB12/apply" });
+  });
+
+  it("Teamtailor: parses RSS items with location and remote status", () => {
+    const xml = `<rss><channel><item><title>Account Executive</title><description>&lt;p&gt;Hi&lt;/p&gt;</description><pubDate>Mon, 06 Jul 2026 08:58:57 +0200</pubDate><link>https://career.teamtailor.com/jobs/1-ae</link><remoteStatus>hybrid</remoteStatus><guid>g1</guid><tt:locations><tt:location><tt:city>London</tt:city><tt:country>United Kingdom</tt:country></tt:location></tt:locations><tt:department>Sales</tt:department></item></channel></rss>`;
+    const [job] = parseTeamtailorRss(xml, "Teamtailor");
+    expect(job).toMatchObject({ externalId: "g1", remoteScope: "hybrid", countries: ["GB"], department: "Sales", descriptionText: "Hi" });
+  });
+
+  it("Breezy: remote job with hourly salary", () => {
+    const job = normalizeBreezy(
+      { id: "b1", name: "Virtual Assistant", url: "https://x.breezy.hr/p/b1-va", salary: "$5 - $7 / hour", location: { name: "Remote", is_remote: true, country: null } },
+      "X",
+    );
+    expect(job).toMatchObject({ remoteScope: "worldwide", applyUrl: "https://x.breezy.hr/p/b1-va/apply", salaryPeriod: "hour", salaryMin: 5 });
+  });
+
+  it("Rippling: workplace types map to scope", () => {
+    const job = normalizeRippling(
+      { id: "r1", name: "Ops", url: "https://ats.rippling.com/x/jobs/r1", locations: [{ name: "San Francisco, CA", countryCode: "US", workplaceType: "ON_SITE" }] },
+      "Rippling",
+    );
+    expect(job).toMatchObject({ remoteScope: "onsite", countries: ["US"] });
+  });
+
+  it("BambooHR: locationType 2 is hybrid", () => {
+    const job = normalizeBamboo({ id: "324", jobOpeningName: "Coordinator (Mumbai)", location: { city: "Mumbai", state: " India" }, locationType: "2" }, "Axios", "axiosint");
+    expect(job).toMatchObject({ remoteScope: "hybrid", countries: ["IN"], applyUrl: "https://axiosint.bamboohr.com/careers/324" });
+  });
+});
