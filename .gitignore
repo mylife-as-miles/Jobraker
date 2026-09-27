@@ -71,3 +71,5 @@ dist-ssr
 # Private takeover notes (contain unfixed security findings)
 JOBRAKER_ANALYSIS.md
 AUTO_APPLY_TODO.md
+docs/JOB_SEARCH_REENGINEERING_PLAN.md
+docs/ATS_PLATFORM_RESEARCH.md
