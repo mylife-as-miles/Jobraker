@@ -36,6 +36,12 @@ const REGION_AMERICAS = /\b(americas|latam|north america)\b/i;
 export const mentionsWorldwide = (text: string | null | undefined): boolean =>
   Boolean(text) && WORLDWIDE.test(String(text));
 
+// Titles use "Global" for a role's scope ("Global Real Estate Manager" in San
+// Francisco), so only unambiguous phrases count as open-worldwide there.
+const TITLE_WORLDWIDE = /\b(worldwide|anywhere|work from anywhere)\b|remote[^a-z]{0,4}global|global[^a-z]{0,4}remote/i;
+export const titleSaysWorldwide = (title: string | null | undefined): boolean =>
+  Boolean(title) && TITLE_WORLDWIDE.test(String(title));
+
 export function detectCountries(text: string | null | undefined): string[] {
   if (!text) return [];
   const found = new Set<string>();

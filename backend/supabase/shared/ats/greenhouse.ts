@@ -1,6 +1,6 @@
 import type { AtsAdapter, NormalizedJob, NormalizedQuestion } from "./types.ts";
 import { classifyQuestion } from "./questions.ts";
-import { classifyLocation, mentionsWorldwide } from "./location.ts";
+import { classifyLocation, titleSaysWorldwide } from "./location.ts";
 import { htmlToText } from "./text.ts";
 
 // Greenhouse Job Board API (public, no auth):
@@ -42,7 +42,7 @@ export function normalizeGreenhouseJob(
 ): NormalizedJob {
   const locationText = job?.location?.name ? String(job.location.name) : null;
   const classified = classifyLocation(locationText);
-  const remoteScope = mentionsWorldwide(job?.title) && classified.remoteScope !== "hybrid"
+  const remoteScope = titleSaysWorldwide(job?.title) && classified.remoteScope !== "hybrid"
     ? "worldwide"
     : classified.remoteScope;
   const { countries } = classified;

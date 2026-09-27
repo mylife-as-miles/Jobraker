@@ -1,6 +1,6 @@
 import type { AtsAdapter, NormalizedJob, NormalizedQuestion } from "./types.ts";
 import { classifyQuestion } from "./questions.ts";
-import { classifyLocation, mentionsWorldwide } from "./location.ts";
+import { classifyLocation, titleSaysWorldwide } from "./location.ts";
 import { htmlToText } from "./text.ts";
 
 // Recruitee Careers Site API (public, no auth):
@@ -54,7 +54,7 @@ export function normalizeRecruiteeOffer(offer: any, companyName: string): Normal
     // worldwide/anywhere, is open worldwide.
     remoteScope:
       remoteScope !== "hybrid" &&
-        ((offer?.remote && countries.length === 0 && remoteScope === "restricted") || mentionsWorldwide(offer?.title))
+        ((offer?.remote && countries.length === 0 && remoteScope === "restricted") || titleSaysWorldwide(offer?.title))
         ? "worldwide"
         : remoteScope,
     countries: detected,

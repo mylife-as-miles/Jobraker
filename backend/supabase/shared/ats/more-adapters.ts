@@ -1,7 +1,7 @@
 // Adapters for SmartRecruiters, Workable, Teamtailor, Breezy HR, Rippling and
 // BambooHR. None of these expose application questions publicly.
 import type { AtsAdapter, NormalizedJob, RemoteScope } from "./types.ts";
-import { classifyLocation, mentionsWorldwide } from "./location.ts";
+import { classifyLocation, mentionsWorldwide, titleSaysWorldwide } from "./location.ts";
 import { htmlToText } from "./text.ts";
 import { parseSalarySummary } from "./salary.ts";
 
@@ -13,7 +13,7 @@ function finish(
   job: Base,
   hints: { remote?: boolean | null; hybrid?: boolean | null; countries?: string[] },
 ): NormalizedJob {
-  const worldwide = mentionsWorldwide(job.title) || mentionsWorldwide(job.locationText);
+  const worldwide = titleSaysWorldwide(job.title) || mentionsWorldwide(job.locationText);
   const c = classifyLocation(job.locationText, { ...hints, countries: worldwide ? [] : hints.countries });
   const remoteScope: RemoteScope = worldwide && c.remoteScope !== "hybrid" ? "worldwide" : c.remoteScope;
   return { ...job, remoteScope, countries: worldwide ? [] : c.countries } as NormalizedJob;

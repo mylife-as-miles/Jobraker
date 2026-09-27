@@ -1,5 +1,5 @@
 import type { AtsAdapter, NormalizedJob, RemoteScope } from "./types.ts";
-import { classifyLocation, detectCountries, mentionsWorldwide } from "./location.ts";
+import { classifyLocation, detectCountries, mentionsWorldwide, titleSaysWorldwide } from "./location.ts";
 import { parseSalarySummary } from "./salary.ts";
 
 // Ashby public job posting API (no auth):
@@ -20,7 +20,7 @@ export function normalizeAshbyJob(job: any, companyName: string): NormalizedJob 
     countries: countryHints,
   });
   let remoteScope: RemoteScope = classified.remoteScope;
-  if (remoteScope !== "hybrid" && (mentionsWorldwide(job?.title) || mentionsWorldwide(locationText))) remoteScope = "worldwide";
+  if (remoteScope !== "hybrid" && (titleSaysWorldwide(job?.title) || mentionsWorldwide(locationText))) remoteScope = "worldwide";
   const salary = parseSalarySummary(job?.compensation?.scrapeableCompensationSalarySummary);
   return {
     externalId: String(job.id),

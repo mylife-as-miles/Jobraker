@@ -4,6 +4,7 @@ import { classifyLocation } from "../../backend/supabase/shared/ats/location";
 import { htmlToText } from "../../backend/supabase/shared/ats/text";
 import {
   greenhouseAdapter,
+  normalizeGreenhouseJob,
   normalizeGreenhouseQuestions,
 } from "../../backend/supabase/shared/ats/greenhouse";
 import { normalizeRecruiteeOffer } from "../../backend/supabase/shared/ats/recruitee";
@@ -269,5 +270,28 @@ describe("contentHash", () => {
   });
   it("changes when nested question text changes", () => {
     expect(contentHash({ ...row, questions: [{ label: "Why them?", required: true }] })).not.toBe(contentHash(row));
+  });
+});
+
+import { titleSaysWorldwide } from "../../backend/supabase/shared/ats/location";
+
+describe("titleSaysWorldwide", () => {
+  it("ignores role-scope uses of Global in titles", () => {
+    expect(titleSaysWorldwide("Global Design & Project Manager")).toBe(false);
+    expect(titleSaysWorldwide("Global Real Estate Construction Manager")).toBe(false);
+    expect(titleSaysWorldwide("Global Paid Search Marketing Manager")).toBe(false);
+  });
+  it("accepts unambiguous worldwide phrases", () => {
+    expect(titleSaysWorldwide("P2P Node.js Engineer (100% Remote, Worldwide)")).toBe(true);
+    expect(titleSaysWorldwide("Support Agent - Work From Anywhere")).toBe(true);
+    expect(titleSaysWorldwide("Engineer (Remote - Global)")).toBe(true);
+  });
+  it("keeps a San Francisco Global role on-site", () => {
+    const job = normalizeGreenhouseJob(
+      { id: 9, title: "Global Real Estate Construction Manager", absolute_url: "https://x/9", location: { name: "San Francisco, CA" } },
+      "Anthropic",
+      null,
+    );
+    expect(job).toMatchObject({ remoteScope: "onsite", countries: ["US"] });
   });
 });

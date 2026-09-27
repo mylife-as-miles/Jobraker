@@ -1,5 +1,5 @@
 import type { AtsAdapter, NormalizedJob, RemoteScope } from "./types.ts";
-import { classifyLocation, mentionsWorldwide } from "./location.ts";
+import { classifyLocation, mentionsWorldwide, titleSaysWorldwide } from "./location.ts";
 
 // Lever postings API (no auth):
 //   https://api.lever.co/v0/postings/{site}?mode=json   (EU: api.eu.lever.co)
@@ -11,7 +11,7 @@ export function normalizeLeverPosting(posting: any, companyName: string): Normal
   const all: string[] = Array.isArray(cats?.allLocations) ? cats.allLocations.map(String) : [];
   const locationText = [cats?.location, ...all.filter((l) => l !== cats?.location)].filter(Boolean).join("; ") || null;
   const workplace = String(posting?.workplaceType ?? "").toLowerCase();
-  const worldwide = mentionsWorldwide(locationText) || mentionsWorldwide(posting?.text);
+  const worldwide = mentionsWorldwide(locationText) || titleSaysWorldwide(posting?.text);
   // `country` is the posting's legal entity; ignore it when the location
   // itself says Global/Anywhere, or a worldwide role becomes single-country.
   const classified = classifyLocation(locationText, {
