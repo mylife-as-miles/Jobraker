@@ -437,7 +437,27 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const runIdPatch = providerRunId ? { run_id: providerRunId } : {};
 
     if (rtrvrRes.ok) {
+      // RTRVR agent protocol puts the verdict in status / success /
+      // terminalResult / inputRequest, not in the legacy top-level fields
+      // checked below. A run that stopped to ask the user a question used to
+      // fall through to "succeeded" and was shown as Applied.
+      const rtrvrQuestions: any[] = Array.isArray(result?.inputRequest?.questions)
+        ? result.inputRequest.questions
+        : [];
+      const rtrvrTerminalState = String(result?.terminalResult?.state || result?.completion?.status || "");
+      const rtrvrRequiresInput =
+        result?.status === "requires_input" ||
+        rtrvrQuestions.length > 0 ||
+        /^blocked/i.test(rtrvrTerminalState);
+      if (rtrvrRequiresInput && !result?.unresolvedQuestion && typeof rtrvrQuestions[0]?.query === "string") {
+        result.unresolvedQuestion = { questionText: rtrvrQuestions[0].query };
+      }
+      // Only an explicit success from the provider counts as a submission.
+      const rtrvrConfirmedSuccess =
+        result?.success === true && result?.terminalResult?.taskComplete !== false;
+
       const isWaitingForUser =
+        rtrvrRequiresInput ||
         result?.status === "waiting_for_user" ||
         Boolean(result?.unresolvedQuestion) ||
         result?.reason === "missing_required_answer" ||
@@ -521,12 +541,24 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         ? (result?.reason as ApplicationReasonCode) || (unresolvedQ ? "missing_required_answer" : "waiting_for_login")
         : null;
 
-      const isDraftOnly = !effectiveAutoSubmit || result?.status === "prepared";
+      // Submission was authorized but the provider did not confirm it: never
+      // report Applied on an unconfirmed run.
+      const submissionUnconfirmed =
+        effectiveAutoSubmit && !isWaitingForUser && result?.status !== "prepared" && !rtrvrConfirmedSuccess;
+      const isDraftOnly = !effectiveAutoSubmit || result?.status === "prepared" || submissionUnconfirmed;
       const failureReasonPatch = isWaitingForUser
-        ? { failure_reason: `Action required: ${waitingReason}` }
+        ? {
+          failure_reason: typeof result?.unresolvedQuestion?.questionText === "string"
+            ? `Action required: ${result.unresolvedQuestion.questionText}`.slice(0, 500)
+            : `Action required: ${waitingReason}`,
+        }
         : isPolicyViolation
           ? { failure_reason: `${policyResult.code}: ${policyResult.reason}` }
-          : {};
+          : submissionUnconfirmed
+            ? {
+              failure_reason: `Automation finished without confirming submission${rtrvrTerminalState ? ` (${rtrvrTerminalState})` : ""}. Saved as Draft; please review and submit.`,
+            }
+            : {};
 
       const nextLifecycleState: LifecycleState = isWaitingForUser
         ? "waiting_for_user"
@@ -538,9 +570,11 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         ? waitingReason
         : isPolicyViolation
           ? (policyResult.code as ApplicationReasonCode)
-          : isDraftOnly
-            ? "user_selected_review"
-            : null;
+          : submissionUnconfirmed
+            ? "submission_uncertain"
+            : isDraftOnly
+              ? "user_selected_review"
+              : null;
 
       const updatedProviderRunOutput = {
         ...(app.provider_run_output && typeof app.provider_run_output === "object" ? app.provider_run_output : {}),
