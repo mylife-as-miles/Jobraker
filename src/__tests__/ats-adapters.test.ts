@@ -7,6 +7,56 @@ import {
   normalizeGreenhouseQuestions,
 } from "../../backend/supabase/shared/ats/greenhouse";
 import { normalizeRecruiteeOffer } from "../../backend/supabase/shared/ats/recruitee";
+import { normalizeAshbyJob } from "../../backend/supabase/shared/ats/ashby";
+import { normalizeLeverPosting } from "../../backend/supabase/shared/ats/lever";
+import { parseSalarySummary } from "../../backend/supabase/shared/ats/salary";
+
+describe("parseSalarySummary", () => {
+  it("parses symbols and K suffixes", () => {
+    expect(parseSalarySummary("€110K – €185K")).toEqual({ min: 110000, max: 185000, currency: "EUR" });
+    expect(parseSalarySummary("$90,000 - $120,000")).toEqual({ min: 90000, max: 120000, currency: "USD" });
+    expect(parseSalarySummary("")).toEqual({ min: null, max: null, currency: null });
+  });
+});
+
+describe("Ashby adapter", () => {
+  it("normalizes an EU remote job with compensation", () => {
+    const job = normalizeAshbyJob(
+      {
+        id: "a1", title: "Engineering Manager - EU", location: "Remote - European Union", isRemote: true, workplaceType: "Remote",
+        secondaryLocations: [{ location: "Spain" }, { location: "Italy" }],
+        applyUrl: "https://jobs.ashbyhq.com/x/a1/application", jobUrl: "https://jobs.ashbyhq.com/x/a1",
+        compensation: { scrapeableCompensationSalarySummary: "€110K - €185K" }, publishedAt: "2024-03-04T14:29:08Z",
+      },
+      "X",
+    );
+    expect(job.remoteScope).toBe("restricted");
+    expect(job.countries).toContain("ES");
+    expect(job).toMatchObject({ salaryMin: 110000, salaryMax: 185000, salaryCurrency: "EUR", questions: null });
+  });
+});
+
+describe("Lever adapter", () => {
+  it("keeps a Global role worldwide despite the entity country", () => {
+    const job = normalizeLeverPosting(
+      {
+        id: "l1", text: "Account Director", country: "CO", workplaceType: "remote",
+        categories: { location: "Global", commitment: "Contractor", department: "Business Units", allLocations: ["Global"] },
+        applyUrl: "https://jobs.lever.co/x/l1/apply", hostedUrl: "https://jobs.lever.co/x/l1", createdAt: 1772012537082,
+      },
+      "X",
+    );
+    expect(job).toMatchObject({ remoteScope: "worldwide", countries: [], employmentType: "Contractor" });
+  });
+
+  it("uses the entity country for a plain remote role", () => {
+    const job = normalizeLeverPosting(
+      { id: "l2", text: "Engineer", country: "US", workplaceType: "remote", categories: { location: "Remote" }, applyUrl: "https://jobs.lever.co/x/l2/apply" },
+      "X",
+    );
+    expect(job).toMatchObject({ remoteScope: "restricted", countries: ["US"] });
+  });
+});
 
 describe("classifyQuestion", () => {
   it.each([
