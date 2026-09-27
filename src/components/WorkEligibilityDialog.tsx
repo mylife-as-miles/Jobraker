@@ -74,7 +74,7 @@ export function WorkEligibilityDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!saving ? onOpenChange(next) : undefined)}>
-      <DialogContent className='w-[calc(100vw-1rem)] max-w-[560px] max-h-[calc(100dvh-1rem)] overflow-y-auto'>
+      <DialogContent overlayClassName='z-[10000]' className='z-[10000] w-[calc(100vw-1rem)] max-w-[560px] max-h-[calc(100dvh-1rem)] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>Work eligibility</DialogTitle>
           <DialogDescription>
