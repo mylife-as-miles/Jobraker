@@ -82,3 +82,16 @@ describe("discoverJobsFromAtsIndex", () => {
     expect(result.warnings[0]).toMatch(/astronaut/);
   });
 });
+
+describe("discoverJobsFromAtsIndex with an explicit country", () => {
+  it("uses the chosen country over the profile", async () => {
+    const { client, calls } = fakeClient({ profileLocation: "Lagos, Nigeria", hits: [hit("1")] });
+    await discoverJobsFromAtsIndex({ serviceClient: client, userId: "u1", searchQuery: "pm", location: "Remote", limit: 5, workableFrom: "ke" });
+    expect(calls.rpc).toMatchObject({ p_workable_from: "KE" });
+  });
+  it("ANY removes the country filter", async () => {
+    const { client, calls } = fakeClient({ profileLocation: "Lagos, Nigeria", hits: [hit("1")] });
+    await discoverJobsFromAtsIndex({ serviceClient: client, userId: "u1", searchQuery: "pm", location: "Remote", limit: 5, workableFrom: "ANY" });
+    expect(calls.rpc).toMatchObject({ p_workable_from: null, p_remote_scopes: ["worldwide", "restricted"] });
+  });
+});

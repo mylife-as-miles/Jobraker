@@ -81,6 +81,8 @@ interface FirecrawlDiscoveryArgs {
   freshnessDays?: number;
   sourceFocus?: PublicJobSource[];
   targetDomains?: string[];
+  /** ISO country the candidate can work from; "ANY" = no filter (ATS index only). */
+  workableFrom?: string;
 }
 
 interface JobSourceSettings {

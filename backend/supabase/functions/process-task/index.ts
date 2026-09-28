@@ -192,6 +192,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
       sourceFocus,
       targetDomains,
       freshnessDays,
+      workableFrom: typeof params.workableFrom === "string" ? params.workableFrom : undefined,
     },
     async (batch) => {
       const { jobsInserted: batchInserted, formattingTask } =

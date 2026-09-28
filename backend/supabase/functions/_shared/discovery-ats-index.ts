@@ -2,8 +2,30 @@
 // web. Returns DiscoveryJob rows in the same shape as the Firecrawl discovery,
 // so persistDiscoveredJobs, credits settlement, the task flow and the Jobs page
 // are unchanged. Every result is a real posting with a direct apply URL.
-import type { DiscoveryJob, DiscoveryResult } from "./discovery-hybrid.ts";
 import { detectCountries } from "../../shared/ats/location.ts";
+
+// Structural copies of the DiscoveryJob/DiscoveryResult shapes in
+// discovery-hybrid.ts. Importing that file (even type-only) would pull its
+// Deno-only dependencies into the app typecheck via this module's tests.
+type DiscoveryJob = {
+  title: string;
+  company: string;
+  location: string | null;
+  url: string;
+  description: string;
+  posted_at: string | null;
+  source_id: string;
+  source_type: "adapter" | "web_search";
+  source_kind: any;
+  source_confidence: number;
+  verification_status: "verified" | "stale" | "failed" | "unverified";
+  is_tracked_company: boolean;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  raw_data: Record<string, unknown>;
+};
+type DiscoveryResult = { jobs: DiscoveryJob[]; warnings: string[] };
 
 interface AtsIndexDiscoveryArgs {
   serviceClient: any;
@@ -11,6 +33,8 @@ interface AtsIndexDiscoveryArgs {
   searchQuery: string;
   location: string;
   limit: number;
+  // Chosen by the user on the Jobs page; "ANY" = no country filter.
+  workableFrom?: string;
 }
 
 const KNOWN_SOURCE_KINDS = new Set(["greenhouse", "lever", "ashby", "workable"]);
@@ -19,11 +43,14 @@ const BATCH_SIZE = 10;
 
 // Users on the allowlist (ATS_INDEX_SEARCH_USERS, comma-separated user ids),
 // or everyone when ATS_INDEX_SEARCH_ALL=true, search the index.
+// Read through globalThis so this module also typechecks outside Deno (tests).
+const envVar = (name: string): string => String((globalThis as any).Deno?.env?.get(name) ?? "");
+
 export function useAtsIndexFor(userId: string): boolean {
-  if ((Deno.env.get("ATS_INDEX_SEARCH_ALL") || "").trim().toLowerCase() === "true") return true;
-  const allow = (Deno.env.get("ATS_INDEX_SEARCH_USERS") || "")
+  if (envVar("ATS_INDEX_SEARCH_ALL").trim().toLowerCase() === "true") return true;
+  const allow = envVar("ATS_INDEX_SEARCH_USERS")
     .split(",")
-    .map((s) => s.trim())
+    .map((s: string) => s.trim())
     .filter(Boolean);
   return allow.includes(userId);
 }
@@ -40,10 +67,13 @@ export async function discoverJobsFromAtsIndex(
   const { serviceClient, userId, searchQuery, location } = args;
   const limit = Math.max(1, Math.min(Number(args.limit) || 20, 100));
   const remoteSearch = REMOTE_LOCATION.test(location || "");
-  const homeCountry = await userCountry(serviceClient, userId);
-  // Remote search: jobs open worldwide or open to the user's country.
-  // Location search: jobs in that country (falls back to the user's country).
-  const workableFrom = remoteSearch ? homeCountry : (detectCountries(location)[0] ?? homeCountry);
+  const chosen = (args.workableFrom || "").trim().toUpperCase();
+  // An explicit choice wins ("ANY" = no filter). Otherwise: remote search
+  // uses the profile country; a location search uses that location's country.
+  const homeCountry = chosen ? null : await userCountry(serviceClient, userId);
+  const workableFrom = chosen
+    ? (chosen === "ANY" ? null : chosen)
+    : remoteSearch ? homeCountry : (detectCountries(location)[0] ?? homeCountry);
 
   const { data: hits, error } = await serviceClient.rpc("search_ats_jobs", {
     p_query: searchQuery,
@@ -84,7 +114,7 @@ export async function discoverJobsFromAtsIndex(
       posted_at: r.posted_at,
       source_id: `ats:${r.ats}:${d.external_id ?? r.id}`,
       source_type: "adapter",
-      source_kind: (KNOWN_SOURCE_KINDS.has(r.ats) ? r.ats : "direct") as DiscoveryJob["source_kind"],
+      source_kind: KNOWN_SOURCE_KINDS.has(r.ats) ? r.ats : "direct",
       source_confidence: 0.95,
       verification_status: "verified",
       is_tracked_company: true,

@@ -12,7 +12,7 @@ export function normalizeAshbyJob(job: any, companyName: string): NormalizedJob 
   const secondary = (Array.isArray(job?.secondaryLocations) ? job.secondaryLocations : [])
     .map((l: any) => String(l?.location ?? l?.address?.postalAddress?.addressCountry ?? ""))
     .filter(Boolean);
-  const countryHints = [...new Set(secondary.flatMap((s: string) => detectCountries(s)))];
+  const countryHints: string[] = [...new Set<string>(secondary.flatMap((s: string) => detectCountries(s)))];
   const workplace = String(job?.workplaceType ?? "").toLowerCase();
   const classified = classifyLocation(locationText, {
     remote: job?.isRemote === true || workplace === "remote",
