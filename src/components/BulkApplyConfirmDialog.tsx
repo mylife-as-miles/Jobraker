@@ -28,6 +28,18 @@ function Row({ item, checked, onToggle }: { item: BulkPlanItem; checked: boolean
           {item.location ? ` · ${item.location}` : ""}
           {item.matchScore !== null ? ` · ${item.matchScore}% match` : ""}
         </span>
+        <span className='mt-1 block text-xs'>
+          {item.readiness === "ready" ? (
+            <span className='text-brand'>Ready: no questions expected</span>
+          ) : item.readiness === "needs" ? (
+            <span className='text-amber-400' title={(item.missing ?? []).join(", ")}>
+              Will ask {item.missing?.length ?? 0} {item.missing?.length === 1 ? "question" : "questions"}: {(item.missing ?? []).slice(0, 2).join(", ")}
+              {(item.missing?.length ?? 0) > 2 ? "…" : ""}
+            </span>
+          ) : (
+            <span className='text-muted-foreground'>Questions not published by this employer</span>
+          )}
+        </span>
         {item.reason ? <span className='mt-1 block text-xs text-amber-400'>{item.reason}</span> : null}
       </span>
     </label>
@@ -72,6 +84,19 @@ export function BulkApplyConfirmDialog({ open, onOpenChange, plan, onConfirm }: 
             that you can work from your country, and at most {BULK_MAX_PER_EMPLOYER_30D} per employer each month.
           </DialogDescription>
         </DialogHeader>
+
+        {plan.selected.some((j) => j.readiness === "ready") ? (
+          <div className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
+            <span>Jobs that will not stop to ask go first.</span>
+            <button
+              type='button'
+              className='font-medium text-brand hover:underline'
+              onClick={() => setChecked(new Set(plan.selected.filter((j) => j.readiness === "ready").map((j) => j.id)))}
+            >
+              Only jobs ready now
+            </button>
+          </div>
+        ) : null}
 
         <div className='flex flex-col gap-2'>
           {plan.selected.length === 0 ? (

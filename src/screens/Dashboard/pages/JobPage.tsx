@@ -3691,13 +3691,14 @@ export const JobPage = (): JSX.Element => {
               matchScore: job.matchScore ?? null,
               raw_data: job.raw_data,
             })),
-            { country, recentByCompany },
+            { country, recentByCompany, eligibility: workEligibility },
           ));
           setBulkConfirmOpen(true);
           return;
         }
-        const allowed = new Set(confirmedJobIds);
-        targetJobs = targetJobs.filter((job) => allowed.has(job.id));
+        // Submit in the confirmed order: ready jobs first, jobs that will ask last.
+        const byId = new Map(targetJobs.map((job) => [job.id, job]));
+        targetJobs = confirmedJobIds.map((id) => byId.get(id)).filter((job): job is Job => Boolean(job));
         if (!targetJobs.length) return;
       }
       if (saveAsDraftOnly) {
@@ -4527,6 +4528,7 @@ export const JobPage = (): JSX.Element => {
       fetchConcurrencyInfo,
       workableFrom,
       profile?.location,
+      workEligibility,
     ],
   );
 

@@ -46,3 +46,22 @@ describe("planBulkApply", () => {
     expect(withHistory.selected.map((j) => j.matchScore)).toEqual([90]);
   });
 });
+
+describe("planBulkApply readiness ordering", () => {
+  const withQuestions = (id: string, score: number, keys: string[]) => ({
+    id, title: id, company: `Co ${id}`, matchScore: score,
+    raw_data: { ats: { remote_scope: "worldwide", countries: [], questions_known: true, required_question_keys: keys } },
+  });
+  it("puts ready jobs first, then unknown, then jobs that will ask", () => {
+    const plan = planBulkApply(
+      [
+        withQuestions("needs", 95, ["email", "notice_period"]),
+        { id: "unknown", title: "u", company: "Co u", matchScore: 90, raw_data: { ats: { remote_scope: "worldwide" } } },
+        withQuestions("ready", 60, ["email"]),
+      ],
+      { country: "NG", recentByCompany: {}, eligibility: null },
+    );
+    expect(plan.selected.map((j) => [j.id, j.readiness])).toEqual([["ready", "ready"], ["unknown", "unknown"], ["needs", "needs"]]);
+    expect(plan.selected[2].missing).toEqual(["Notice period / start date"]);
+  });
+});
