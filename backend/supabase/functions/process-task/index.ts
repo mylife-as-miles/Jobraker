@@ -1,6 +1,6 @@
 // backend/supabase/functions/process-task/index.ts
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsHybrid } from "../_shared/discovery-hybrid.ts";
 import {
   countDisplayableJobsForSearch,
   persistDiscoveredJobs,
@@ -182,7 +182,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
 
   let totalInserted = 0;
   const pendingFormatting: Promise<unknown>[] = [];
-  const { jobs: discoveredJobs, warnings } = await discoverJobsFirecrawl(
+  const { jobs: discoveredJobs, warnings } = await discoverJobsHybrid(
     {
       serviceClient: supabase,
       userId,
@@ -192,6 +192,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
       sourceFocus,
       targetDomains,
       freshnessDays,
+      workableFrom: typeof params.workableFrom === "string" ? params.workableFrom : undefined,
     },
     async (batch) => {
       const { jobsInserted: batchInserted, formattingTask } =

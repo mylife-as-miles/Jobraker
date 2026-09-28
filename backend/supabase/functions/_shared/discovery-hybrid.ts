@@ -13,6 +13,7 @@ import {
   resolveFirecrawlApiKey,
   withRetry,
 } from "./firecrawl.ts";
+import { discoverJobsFromAtsIndex, useAtsIndexFor } from "./discovery-ats-index.ts";
 
 type SourceKind =
   | "greenhouse"
@@ -80,6 +81,8 @@ interface FirecrawlDiscoveryArgs {
   freshnessDays?: number;
   sourceFocus?: PublicJobSource[];
   targetDomains?: string[];
+  /** ISO country the candidate can work from; "ANY" = no filter (ATS index only). */
+  workableFrom?: string;
 }
 
 interface JobSourceSettings {
@@ -3359,5 +3362,10 @@ export async function discoverJobsHybrid(
   // so jobs-search (sync) and jobs-cron discovered jobs but never saved them.
   onBatch?: (jobs: DiscoveryJob[]) => Promise<void>,
 ): Promise<DiscoveryResult> {
+  // Users switched to the ATS job index get real postings from it; everyone
+  // else keeps open-web discovery (see discovery-ats-index.ts).
+  if (useAtsIndexFor(args.userId)) {
+    return discoverJobsFromAtsIndex(args, onBatch);
+  }
   return discoverJobsFirecrawl(args, onBatch);
 }

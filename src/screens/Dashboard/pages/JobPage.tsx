@@ -77,6 +77,9 @@ import {
 } from "../../../services/profile/workEligibility";
 import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
 import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
+import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "../../../lib/atsReadiness";
+
+const WORKABLE_FROM_STORAGE_KEY = "jobraker.jobs.workableFrom";
 import {
   evaluateJobFit,
   type EvaluateJobFitResponse,
@@ -1329,6 +1332,21 @@ export const JobPage = (): JSX.Element => {
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
   const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
   const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
+  // Loaded up front so job cards can show auto-apply readiness.
+  useEffect(() => {
+    let cancelled = false;
+    fetchWorkEligibility()
+      .then((value) => { if (!cancelled && value) setWorkEligibility(value); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+  // Country the user can work from for job search ("" = profile, "ANY" = no filter).
+  const [workableFrom, setWorkableFrom] = useState<string>(() => {
+    try { return localStorage.getItem(WORKABLE_FROM_STORAGE_KEY) ?? ""; } catch { return ""; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(WORKABLE_FROM_STORAGE_KEY, workableFrom); } catch { /* storage unavailable */ }
+  }, [workableFrom]);
   const [concurrencyInfo, setConcurrencyInfo] = useState<{
     activeRuns: number;
     totalLimit: number;
@@ -1819,7 +1837,7 @@ export const JobPage = (): JSX.Element => {
 
   const [stepIndex, setStepIndex] = useState(0);
   const steps = useMemo(
-    () => ["Searching Web", "Saving Results", "Finalizing List"],
+    () => ["Searching Jobs", "Saving Results", "Finalizing List"],
     [],
   );
   const autoApplySteps = useMemo(
@@ -2675,7 +2693,7 @@ export const JobPage = (): JSX.Element => {
       setQueueStatus("populating");
       setError(null);
       setLastReason(null);
-      setStepIndex(0); // Step 0: Searching Web
+      setStepIndex(0); // Step 0: Searching jobs
       setIncrementalMode(true);
       setInsertedThisRun(0);
       backgroundEvaluationFailedRef.current.clear();
@@ -2746,6 +2764,7 @@ export const JobPage = (): JSX.Element => {
           freshnessDays: 30,
           ...(sources ? { sources } : {}),
           ...(targetDomains.length > 0 ? { targetDomains } : {}),
+          ...(workableFrom ? { workableFrom } : {}),
           async: true,
         };
 
@@ -2788,7 +2807,7 @@ export const JobPage = (): JSX.Element => {
 
           safeInfo(
             "Search started",
-            "Searching the web and analyzing matches in the background.",
+            "Searching open jobs and analyzing matches in the background.",
           );
         } else {
           throw new Error("No task ID returned from background search.");
@@ -2813,6 +2832,7 @@ export const JobPage = (): JSX.Element => {
       selectedLocation,
       locationScope,
       subscriptionTier,
+      workableFrom,
     ],
   );
 
@@ -5896,6 +5916,25 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                   {job.lead_quality_score}% Quality
                                 </span>
                               )}
+                            {(() => {
+                              // Auto-apply readiness from the job application questions.
+                              const readiness = getAutoApplyReadiness(job.raw_data, workEligibility);
+                              if (readiness.state === "unknown") return null;
+                              if (readiness.state === "ready") {
+                                return (
+                                  <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-brand/10 text-brand border border-brand/20' title='Every required application question is covered by your profile'>
+                                    <Check className='w-3 h-3' />
+                                    Ready to auto-apply
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20' title={`Answer before auto-apply: ${readiness.missing.join(", ")}`}>
+                                  <AlertTriangle className='w-3 h-3' />
+                                  Needs {readiness.missing.length} {readiness.missing.length === 1 ? "answer" : "answers"}
+                                </span>
+                              );
+                            })()}
                             {job.status && (
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
@@ -6375,10 +6414,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                   </div>
 
                                   {/* Action buttons stay below the title until the card has enough width. */}
-                                  <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                                  <div className='flex w-full flex-wrap items-stretch gap-2'>
                                     <Button
                                       onClick={() => handleOpenTailorModal(job)}
-                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand bg-brand text-black hover:bg-brand/90 px-4 py-2 text-sm font-bold shadow-[0_0_15px_rgba(47,217,104,0.3)] transition'
+                                      className='inline-flex min-h-10 flex-1 basis-[10rem] whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-brand bg-brand text-black hover:bg-brand/90 px-4 py-2 text-sm font-bold shadow-[0_0_15px_rgba(47,217,104,0.3)] transition'
                                       title='Tailor resume specifically to this job description and recalculate match confidence (~95%)'
                                     >
                                       <Sparkles className='w-4 h-4' />
@@ -6389,14 +6428,14 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                         href={primaryHref}
                                         target='_blank'
                                         rel='noopener noreferrer'
-                                        className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
+                                        className='inline-flex min-h-10 flex-1 basis-[10rem] whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
                                       >
                                         View Posting
                                       </a>
                                     )}
                                     <Button
                                       onClick={() => openAutoApplyFlow(job)}
-                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
+                                      className='inline-flex min-h-10 flex-1 basis-[10rem] whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
                                       title='Launch auto apply suite for this job'
                                     >
                                       <Briefcase className='w-4 h-4' />
@@ -8844,6 +8883,28 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Country the candidate can legally work from; filters remote jobs */}
+                  <div className='space-y-1.5'>
+                    <label htmlFor='jobs-workable-from' className='text-xs font-medium text-foreground/80'>
+                      Can work from
+                    </label>
+                    <select
+                      id='jobs-workable-from'
+                      value={workableFrom}
+                      onChange={(e) => setWorkableFrom(e.target.value)}
+                      className='w-full rounded-xl border border-foreground/15 bg-neutral-900 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40'
+                    >
+                      {WORKABLE_FROM_OPTIONS.map((option) => (
+                        <option key={option.code || "profile"} value={option.code}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className='text-[11px] text-foreground/55'>
+                      Remote jobs are limited to ones open worldwide or to this country.
+                    </p>
                   </div>
 
                   {/* AI-Powered Location suggestions */}

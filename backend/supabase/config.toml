@@ -655,6 +655,14 @@ verify_jwt = true
 import_map = "./functions/schedule-interview/deno.json"
 entrypoint = "./functions/schedule-interview/index.ts"
 
+[functions.ats-sync]
+enabled = true
+# Called server-to-server by the scheduler, not by users, so there is no user
+# JWT. The handler requires x-internal-secret == ATS_SYNC_SECRET and fails
+# closed (503) when the secret is not configured.
+verify_jwt = false
+entrypoint = "./functions/ats-sync/index.ts"
+
 [functions.skyvern-webhook]
 enabled = true
 # Provider status callbacks (RTRVR/Skyvern) cannot include a Supabase JWT, so the
@@ -666,7 +674,10 @@ entrypoint = "./functions/skyvern-webhook/index.ts"
 
 [functions.sync-provider-status]
 enabled = true
-verify_jwt = true
+# Browser OPTIONS preflight carries no JWT, so the gateway rejected it and every
+# status sync from the app failed CORS. The handler verifies the bearer token
+# itself (auth.getUser) and only reads the caller's own applications.
+verify_jwt = false
 entrypoint = "./functions/sync-provider-status/index.ts"
 
 [functions.verify-payment]

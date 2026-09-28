@@ -175,6 +175,11 @@ Deno.serve(async (req) => {
     const freshnessDays = Number.isFinite(Number(body?.freshnessDays))
       ? Math.max(1, Math.min(365, Math.floor(Number(body.freshnessDays))))
       : 30;
+    // ISO country code the candidate can work from ("ANY" = no filter); only
+    // the ATS index discovery uses it. Absent = derive from the profile.
+    const workableFrom = typeof body?.workableFrom === "string" && /^([A-Za-z]{2}|ANY)$/.test(body.workableFrom.trim())
+      ? body.workableFrom.trim().toUpperCase()
+      : undefined;
 
     if (!searchQuery) {
       return new Response(JSON.stringify({ error: "searchQuery is required" }), {
@@ -300,6 +305,7 @@ Deno.serve(async (req) => {
             sources: sourceFocus,
             targetDomains,
             freshnessDays,
+            workableFrom,
             agent_run_id: agentRunId,
             search_started_at: searchStartedAt,
           },
@@ -409,6 +415,7 @@ Deno.serve(async (req) => {
           sourceFocus,
           targetDomains,
           freshnessDays,
+          workableFrom,
         },
         async (batch) => {
           const { jobsInserted: batchInserted, formattingTask } = await persistDiscoveredJobs(

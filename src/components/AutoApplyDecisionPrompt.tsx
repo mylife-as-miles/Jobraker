@@ -52,7 +52,7 @@ export function AutoApplyDecisionPrompt({
             {hasHardGaps ? "This job may not be a match" : "Review before applying"}
           </DialogTitle>
           <DialogDescription>
-            Fit confidence is {evaluation.confidence_score}%.{" "}
+            Confidence score: {evaluation.confidence_score}%.{" "}
             {hasHardGaps
               ? "Your profile or resume is missing requirements this job lists as essential."
               : "You can still apply, but consider the suggestions below."}
