@@ -655,6 +655,13 @@ verify_jwt = true
 import_map = "./functions/schedule-interview/deno.json"
 entrypoint = "./functions/schedule-interview/index.ts"
 
+[functions.answer-application-questions]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; the handler verifies the
+# user's bearer token (auth.getUser) and only touches that user's application.
+verify_jwt = false
+entrypoint = "./functions/answer-application-questions/index.ts"
+
 [functions.ats-sync]
 enabled = true
 # Called server-to-server by the scheduler, not by users, so there is no user
