@@ -736,6 +736,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    // At most EMPLOYER_LIMIT automated applications per employer in 30 days,
+    // enforced here so no client path can flood one company. 409 (not 429):
+    // the Jobs page retries 429s, and this cannot succeed by waiting.
+    const EMPLOYER_LIMIT = 2;
+    const normalizeCompany = (value: unknown) =>
+      String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const employerKey = normalizeCompany(jobContext.company);
+    const draftOnlyRequest = body?.save_as_draft_only === true || body?.saveAsDraftOnly === true;
+    if (employerKey && !draftOnlyRequest) {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentApps } = await serviceClient
+        .from("applications")
+        .select("company")
+        .eq("user_id", userId)
+        .gte("created_at", since)
+        .in("provider_status", ["succeeded", "waiting", "queued", "launching", "rtrvr_running", "retrying", "waiting_worker"]);
+      const used = (recentApps ?? []).filter((row: any) => normalizeCompany(row?.company) === employerKey).length;
+      if (used >= EMPLOYER_LIMIT) {
+        return new Response(
+          JSON.stringify({
+            error: `You already have ${used} applications to ${jobContext.company} in the last 30 days (limit ${EMPLOYER_LIMIT}).`,
+            code: "employer_limit_reached",
+            limit: EMPLOYER_LIMIT,
+          }),
+          { status: 409, headers: { ...corsHeaders, "content-type": "application/json" } },
+        );
+      }
+    }
+
     const rtrvrApiKey = (
       Deno.env.get("RTRVR_API_KEY") ||
       Deno.env.get("FIRECRAWL_API_KEY") ||
