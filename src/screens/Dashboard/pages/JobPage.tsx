@@ -78,6 +78,8 @@ import {
 import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
 import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
 import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "../../../lib/atsReadiness";
+import { companyKey, countryFromText, planBulkApply, type BulkPlan } from "../../../lib/bulkApplyPlan";
+import { BulkApplyConfirmDialog } from "../../../components/BulkApplyConfirmDialog";
 
 const WORKABLE_FROM_STORAGE_KEY = "jobraker.jobs.workableFrom";
 import {
@@ -1332,6 +1334,8 @@ export const JobPage = (): JSX.Element => {
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
   const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
   const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
+  const [bulkPlan, setBulkPlan] = useState<BulkPlan | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   // Loaded up front so job cards can show auto-apply readiness.
   useEffect(() => {
     let cancelled = false;
@@ -3603,7 +3607,7 @@ export const JobPage = (): JSX.Element => {
   ]);
 
   const applyAllJobs = useCallback(
-    async (saveAsDraftOnly: boolean = false) => {
+    async (saveAsDraftOnly: boolean = false, confirmedJobIds?: string[]) => {
       if (applyingAll) return;
       if (!hasAutoApplyAccess) {
         setError({
@@ -3646,7 +3650,7 @@ export const JobPage = (): JSX.Element => {
 
       const activeSearchCriteria = (activeSearchScope?.searchQuery || searchQuery || "").trim();
       const baseCandidateJobs = jobToAutoApply ? [jobToAutoApply] : sortedJobs;
-      const targetJobs = jobToAutoApply
+      let targetJobs = jobToAutoApply
         ? baseCandidateJobs
         : activeSearchCriteria
           ? baseCandidateJobs.filter((job) => matchesJobSearchCriteria(job, activeSearchCriteria))
@@ -3661,6 +3665,41 @@ export const JobPage = (): JSX.Element => {
         return;
       }
 
+
+      // Bulk runs: apply the fit, eligibility and per-employer guards, then ask
+      // the user to confirm the list before anything is submitted.
+      if (!saveAsDraftOnly && !jobToAutoApply && targetJobs.length > 1) {
+        if (!confirmedJobIds) {
+          const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recent } = await (supabase as any)
+            .from("applications")
+            .select("company")
+            .gte("created_at", since)
+            .in("provider_status", ["succeeded", "waiting", "queued", "launching", "rtrvr_running", "retrying", "waiting_worker"]);
+          const recentByCompany: Record<string, number> = {};
+          for (const row of (recent ?? []) as Array<{ company: string | null }>) {
+            const key = companyKey(row.company);
+            if (key) recentByCompany[key] = (recentByCompany[key] ?? 0) + 1;
+          }
+          const country = workableFrom === "ANY" ? null : workableFrom || countryFromText(profile?.location);
+          setBulkPlan(planBulkApply(
+            targetJobs.map((job) => ({
+              id: job.id,
+              title: job.title,
+              company: job.company,
+              location: job.location ?? null,
+              matchScore: job.matchScore ?? null,
+              raw_data: job.raw_data,
+            })),
+            { country, recentByCompany },
+          ));
+          setBulkConfirmOpen(true);
+          return;
+        }
+        const allowed = new Set(confirmedJobIds);
+        targetJobs = targetJobs.filter((job) => allowed.has(job.id));
+        if (!targetJobs.length) return;
+      }
       if (saveAsDraftOnly) {
         setApplyingAll(true);
         try {
@@ -4486,6 +4525,8 @@ export const JobPage = (): JSX.Element => {
       profile?.rtrvr_prefer_extension,
       gamificationHook,
       fetchConcurrencyInfo,
+      workableFrom,
+      profile?.location,
     ],
   );
 
@@ -8559,6 +8600,15 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
             </Modal>
           );
         })()}
+      <BulkApplyConfirmDialog
+        open={bulkConfirmOpen}
+        onOpenChange={setBulkConfirmOpen}
+        plan={bulkPlan}
+        onConfirm={(jobIds) => {
+          setBulkConfirmOpen(false);
+          void applyAllJobs(false, jobIds);
+        }}
+      />
       <AutoApplyDecisionPrompt
         open={decisionPromptOpen}
         onOpenChange={setDecisionPromptOpen}

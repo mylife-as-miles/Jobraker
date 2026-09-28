@@ -68,6 +68,7 @@ import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useProductTour } from "@/providers/TourProvider";
 import { PersonalizedPromotionBanner } from "@/components/promotions/PersonalizedPromotionBanner";
+import { PendingQuestionsPrompt } from "@/components/PendingQuestionsPrompt";
 
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
 
@@ -999,6 +1000,8 @@ export const Dashboard = (): JSX.Element => {
               : ""
           }`}
         >
+          {/* Questions from auto-apply runs waiting for the user */}
+          <PendingQuestionsPrompt />
           {/* Personalized Promotion Banner */}
           {!chatFocusMode && currentPage !== "billing" && (
             <PersonalizedPromotionBanner placement="top_banner" />
