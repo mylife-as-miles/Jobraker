@@ -1,5 +1,5 @@
 import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "@/lib/atsReadiness";
-import type { WorkEligibility } from "@/services/profile/workEligibility";
+import type { ProfileAnswers } from "../../backend/supabase/shared/application-profile";
 
 // Guards for bulk auto-apply (fixed product rules).
 export const BULK_MIN_MATCH_SCORE = 55;
@@ -52,7 +52,7 @@ const countryName = (code: string) => WORKABLE_FROM_OPTIONS.find((o) => o.code =
 // reason the user can see (and override by ticking it).
 export function planBulkApply(
   jobs: BulkJobInput[],
-  opts: { country: string | null; recentByCompany: Record<string, number>; eligibility?: WorkEligibility | null },
+  opts: { country: string | null; recentByCompany: Record<string, number>; answers?: ProfileAnswers | null },
 ): BulkPlan {
   const selected: BulkPlanItem[] = [];
   const skipped: BulkPlanItem[] = [];
@@ -60,7 +60,7 @@ export function planBulkApply(
   // Jobs that will not stop to ask go first, then unknown, then those that
   // will ask; best match first within each group. Runs are submitted in this order.
   const RANK = { ready: 0, unknown: 1, needs: 2 } as const;
-  const withReadiness = jobs.map((job) => ({ job, readiness: getAutoApplyReadiness(job.raw_data, opts.eligibility ?? null) }));
+  const withReadiness = jobs.map((job) => ({ job, readiness: getAutoApplyReadiness(job, opts.answers ?? null, opts.country) }));
   const ordered = withReadiness.sort((a, b) =>
     RANK[a.readiness.state] - RANK[b.readiness.state] || (b.job.matchScore ?? -1) - (a.job.matchScore ?? -1));
 

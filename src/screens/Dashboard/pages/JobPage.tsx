@@ -72,10 +72,11 @@ import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import {
   fetchWorkEligibility,
-  isWorkEligibilityComplete,
   type WorkEligibility,
 } from "../../../services/profile/workEligibility";
-import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
+import { ProfileRequiredDialog } from "../../../components/ProfileRequiredDialog";
+import { loadApplicationProfile, missingRequiredKeys } from "../../../services/profile/applicationProfile";
+import { withLegacyAnswers, type ProfileAnswers } from "../../../../backend/supabase/shared/application-profile";
 import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
 import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "../../../lib/atsReadiness";
 import { companyKey, countryFromText, planBulkApply, type BulkPlan } from "../../../lib/bulkApplyPlan";
@@ -1332,15 +1333,17 @@ export const JobPage = (): JSX.Element => {
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
-  const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
-  const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
+  const [profileRequiredMissing, setProfileRequiredMissing] = useState<string[]>([]);
+  const [profileAnswers, setProfileAnswers] = useState<ProfileAnswers | null>(null);
   const [bulkPlan, setBulkPlan] = useState<BulkPlan | null>(null);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   // Loaded up front so job cards can show auto-apply readiness.
   useEffect(() => {
     let cancelled = false;
-    fetchWorkEligibility()
-      .then((value) => { if (!cancelled && value) setWorkEligibility(value); })
+    Promise.all([loadApplicationProfile(), fetchWorkEligibility().catch(() => null)])
+      .then(([saved, legacy]) => {
+        if (!cancelled) setProfileAnswers(withLegacyAnswers(saved ?? {}, (legacy as WorkEligibility | null) ?? null));
+      })
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
@@ -3617,15 +3620,17 @@ export const JobPage = (): JSX.Element => {
         return;
       }
 
-      // Autopilot can only submit when the critical eligibility answers are
-      // saved; otherwise the backend downgrades every run to a draft. Ask once.
-      // A null result means the answers could not be read: do not block.
+      // Autopilot needs the required application profile answers; otherwise
+      // runs stop to ask or are downgraded to drafts. null = could not be
+      // read: do not block.
       if (!saveAsDraftOnly && autoSubmitApplications) {
-        const eligibility = await fetchWorkEligibility().catch(() => null);
-        if (eligibility && !isWorkEligibilityComplete(eligibility)) {
-          setWorkEligibility(eligibility);
-          setWorkEligibilityDialogOpen(true);
-          return;
+        const saved = await loadApplicationProfile().catch(() => null);
+        if (saved) {
+          const missing = missingRequiredKeys(saved);
+          if (missing.length) {
+            setProfileRequiredMissing(missing);
+            return;
+          }
         }
       }
 
@@ -3691,7 +3696,7 @@ export const JobPage = (): JSX.Element => {
               matchScore: job.matchScore ?? null,
               raw_data: job.raw_data,
             })),
-            { country, recentByCompany, eligibility: workEligibility },
+            { country, recentByCompany, answers: profileAnswers },
           ));
           setBulkConfirmOpen(true);
           return;
@@ -4528,7 +4533,7 @@ export const JobPage = (): JSX.Element => {
       fetchConcurrencyInfo,
       workableFrom,
       profile?.location,
-      workEligibility,
+      profileAnswers,
     ],
   );
 
@@ -5961,7 +5966,11 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                               )}
                             {(() => {
                               // Auto-apply readiness from the job application questions.
-                              const readiness = getAutoApplyReadiness(job.raw_data, workEligibility);
+                              const readiness = getAutoApplyReadiness(
+                                job,
+                                profileAnswers,
+                                profileAnswers?.country_residence?.country ?? countryFromText(profile?.location),
+                              );
                               if (readiness.state === "unknown") return null;
                               if (readiness.state === "ready") {
                                 return (
@@ -5972,10 +5981,15 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                 );
                               }
                               return (
-                                <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20' title={`Answer before auto-apply: ${readiness.missing.join(", ")}`}>
+                                <button
+                                  type='button'
+                                  onClick={(e) => { e.stopPropagation(); navigate("/dashboard/resume/profile"); }}
+                                  className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                                  title={`Add to your application profile: ${readiness.missing.join(", ")}`}
+                                >
                                   <AlertTriangle className='w-3 h-3' />
                                   Needs {readiness.missing.length} {readiness.missing.length === 1 ? "answer" : "answers"}
-                                </span>
+                                </button>
                               );
                             })()}
                             {job.status && (
@@ -8636,15 +8650,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
           setAiEvaluation(null);
         }}
       />
-      <WorkEligibilityDialog
-        open={workEligibilityDialogOpen}
-        onOpenChange={setWorkEligibilityDialogOpen}
-        initialValue={workEligibility}
-        description='Autopilot needs these answers to submit applications for you. You only answer once, and can change them later in Settings.'
-        onSaved={(saved) => {
-          setWorkEligibility(saved);
-          void applyAllJobs(false);
-        }}
+      <ProfileRequiredDialog
+        open={profileRequiredMissing.length > 0}
+        onOpenChange={(open) => { if (!open) setProfileRequiredMissing([]); }}
+        missing={profileRequiredMissing}
       />
       <ConcurrencyLimitModal
         open={concurrencyModalOpen}

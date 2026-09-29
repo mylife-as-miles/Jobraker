@@ -59,7 +59,7 @@ describe("planBulkApply readiness ordering", () => {
         { id: "unknown", title: "u", company: "Co u", matchScore: 90, raw_data: { ats: { remote_scope: "worldwide" } } },
         withQuestions("ready", 60, ["email"]),
       ],
-      { country: "NG", recentByCompany: {}, eligibility: null },
+      { country: "NG", recentByCompany: {}, answers: null },
     );
     expect(plan.selected.map((j) => [j.id, j.readiness])).toEqual([["ready", "ready"], ["unknown", "unknown"], ["needs", "needs"]]);
     expect(plan.selected[2].missing).toEqual(["Notice period / start date"]);

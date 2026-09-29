@@ -13,6 +13,31 @@
 // beginning with the answers included in the application package.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { classifyQuestion } from "../../shared/ats/questions.ts";
+
+const TEXT_PROFILE_KEYS = new Set([
+  "current_salary", "expected_salary", "how_heard", "education", "language", "employer_current",
+  "title_current", "preferred_name", "pronouns", "accommodation",
+]);
+
+// Turns a popup answer into an application profile value when the question
+// maps to a canonical key with a simple shape; null otherwise.
+function profileValueFor(key: string | null, answer: string): unknown {
+  if (!key) return null;
+  if (TEXT_PROFILE_KEYS.has(key)) return { text: answer };
+  if (key === "notice_period") {
+    const m = answer.match(/(\d+(?:\.\d+)?)\s*(day|week|month)/i);
+    if (!m) return null;
+    const unit = m[2].toLowerCase();
+    const days = Math.round(Number(m[1]) * (unit === "week" ? 7 : unit === "month" ? 30 : 1));
+    return { days, negotiable: /negotiable/i.test(answer) && !/not\s+negotiable/i.test(answer) };
+  }
+  if (key === "years_experience") {
+    const m = answer.match(/\d+(?:\.\d+)?/);
+    return m ? { years: Number(m[0]) } : null;
+  }
+  return null;
+}
 
 const MAX_ANSWER_LENGTH = 2000;
 
@@ -137,6 +162,18 @@ Deno.serve(async (req) => {
         updated_at: nowIso,
       }, { onConflict: "user_id,theme,slug" });
     }
+  }
+
+  // Answers to common questions also go into the application profile, so
+  // every future application answers them without asking.
+  for (const { question, answer } of answers) {
+    const key = classifyQuestion(question);
+    const value = profileValueFor(key, answer);
+    if (!key || value === null) continue;
+    await supabase.from("application_profile_answers").upsert(
+      { user_id: user.id, key, value, source: "popup", updated_at: nowIso },
+      { onConflict: "user_id,key" },
+    );
   }
 
   const { error: updateError } = await supabase.from("applications").update({

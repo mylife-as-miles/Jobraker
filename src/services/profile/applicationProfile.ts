@@ -15,15 +15,16 @@ async function currentUserId(): Promise<string | null> {
   return data?.session?.user?.id ?? null;
 }
 
-// Stored answers, keyed by canonical question key.
-export async function loadApplicationProfile(): Promise<ProfileAnswers> {
+// Stored answers, keyed by canonical question key. null = could not be read
+// (callers must not block on that).
+export async function loadApplicationProfile(): Promise<ProfileAnswers | null> {
   const userId = await currentUserId();
-  if (!userId) return {};
+  if (!userId) return null;
   const { data, error } = await (createClient() as any)
     .from("application_profile_answers")
     .select("key, value")
     .eq("user_id", userId);
-  if (error) return {};
+  if (error) return null;
   return Object.fromEntries((data ?? []).map((row: { key: string; value: unknown }) => [row.key, row.value]));
 }
 

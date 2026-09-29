@@ -101,8 +101,9 @@ export function ApplicationProfilePage() {
     Promise.all([loadApplicationProfile(), loadProfilePrefill()])
       .then(([saved, prefill]) => {
         if (cancelled) return;
-        const suggested = Object.keys(prefill).filter((k) => !(k in saved));
-        setAnswers({ ...prefill, ...saved });
+        const savedAnswers = saved ?? {};
+        const suggested = Object.keys(prefill).filter((k) => !(k in savedAnswers));
+        setAnswers({ ...prefill, ...savedAnswers });
         setPrefilled(new Set(suggested));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
