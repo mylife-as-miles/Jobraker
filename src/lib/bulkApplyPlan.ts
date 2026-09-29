@@ -1,4 +1,4 @@
-import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "@/lib/atsReadiness";
+import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS, type MissingItem } from "@/lib/atsReadiness";
 import type { ProfileAnswers } from "../../backend/supabase/shared/application-profile";
 
 // Guards for bulk auto-apply (fixed product rules).
@@ -23,6 +23,8 @@ export type BulkPlanItem = {
   // ready: all questions covered; unknown: questions not published; needs: will stop to ask.
   readiness: "ready" | "unknown" | "needs";
   missing?: string[];
+  // Structured missing questions, for answering them before launch.
+  items?: MissingItem[];
   reason?: string;
 };
 
@@ -52,7 +54,11 @@ const countryName = (code: string) => WORKABLE_FROM_OPTIONS.find((o) => o.code =
 // reason the user can see (and override by ticking it).
 export function planBulkApply(
   jobs: BulkJobInput[],
-  opts: { country: string | null; recentByCompany: Record<string, number>; answers?: ProfileAnswers | null },
+  opts: { country: string | null; recentByCompany: Record<string, number>;
+    answers?: ProfileAnswers | null;
+    // Answers to job-specific questions typed before launch: jobId -> label -> answer.
+    customAnswers?: Record<string, Record<string, string>>;
+  },
 ): BulkPlan {
   const selected: BulkPlanItem[] = [];
   const skipped: BulkPlanItem[] = [];
@@ -60,7 +66,12 @@ export function planBulkApply(
   // Jobs that will not stop to ask go first, then unknown, then those that
   // will ask; best match first within each group. Runs are submitted in this order.
   const RANK = { ready: 0, unknown: 1, needs: 2 } as const;
-  const withReadiness = jobs.map((job) => ({ job, readiness: getAutoApplyReadiness(job, opts.answers ?? null, opts.country) }));
+  const withReadiness = jobs.map((job) => ({ job, readiness: getAutoApplyReadiness(
+      job,
+      opts.answers ?? null,
+      opts.country,
+      new Set(Object.entries(opts.customAnswers?.[job.id] ?? {}).filter(([, v]) => v.trim()).map(([k]) => k)),
+    ) }));
   const ordered = withReadiness.sort((a, b) =>
     RANK[a.readiness.state] - RANK[b.readiness.state] || (b.job.matchScore ?? -1) - (a.job.matchScore ?? -1));
 
@@ -72,7 +83,7 @@ export function planBulkApply(
       location: job.location ?? null,
       matchScore: typeof job.matchScore === "number" ? Math.round(job.matchScore) : null,
       readiness: readiness.state,
-      ...(readiness.state === "needs" ? { missing: readiness.missing } : {}),
+      ...(readiness.state === "needs" ? { missing: readiness.missing, items: readiness.items } : {}),
     };
     const skip = (reason: string) => skipped.push({ ...item, reason });
 

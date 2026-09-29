@@ -75,11 +75,11 @@ import {
   type WorkEligibility,
 } from "../../../services/profile/workEligibility";
 import { ProfileRequiredDialog } from "../../../components/ProfileRequiredDialog";
-import { loadApplicationProfile, missingRequiredKeys } from "../../../services/profile/applicationProfile";
+import { loadApplicationProfile, missingRequiredKeys, saveApplicationProfile } from "../../../services/profile/applicationProfile";
 import { withLegacyAnswers, type ProfileAnswers } from "../../../../backend/supabase/shared/application-profile";
 import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
 import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "../../../lib/atsReadiness";
-import { companyKey, countryFromText, planBulkApply, type BulkPlan } from "../../../lib/bulkApplyPlan";
+import { companyKey, countryFromText, planBulkApply, type BulkJobInput } from "../../../lib/bulkApplyPlan";
 import { BulkApplyConfirmDialog } from "../../../components/BulkApplyConfirmDialog";
 
 const WORKABLE_FROM_STORAGE_KEY = "jobraker.jobs.workableFrom";
@@ -1335,7 +1335,40 @@ export const JobPage = (): JSX.Element => {
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
   const [profileRequiredMissing, setProfileRequiredMissing] = useState<string[]>([]);
   const [profileAnswers, setProfileAnswers] = useState<ProfileAnswers | null>(null);
-  const [bulkPlan, setBulkPlan] = useState<BulkPlan | null>(null);
+  // Bulk plan inputs; the plan itself is recomputed as the user answers
+  // questions in the confirmation dialog.
+  const [bulkPlanInputs, setBulkPlanInputs] = useState<{
+    jobs: BulkJobInput[];
+    country: string | null;
+    recentByCompany: Record<string, number>;
+  } | null>(null);
+  // Answers to job-specific questions typed before launch: jobId -> label -> answer.
+  const [bulkCustomAnswers, setBulkCustomAnswers] = useState<Record<string, Record<string, string>>>({});
+  const bulkCustomAnswersRef = useRef(bulkCustomAnswers);
+  bulkCustomAnswersRef.current = bulkCustomAnswers;
+  const bulkPlan = useMemo(
+    () => (bulkPlanInputs
+      ? planBulkApply(bulkPlanInputs.jobs, {
+        country: bulkPlanInputs.country,
+        recentByCompany: bulkPlanInputs.recentByCompany,
+        answers: profileAnswers,
+        customAnswers: bulkCustomAnswers,
+      })
+      : null),
+    [bulkPlanInputs, profileAnswers, bulkCustomAnswers],
+  );
+  const saveProfileFromBulk = useCallback(async (patchIn: ProfileAnswers) => {
+    // Merge list/object answers so saving one permission or employer keeps the rest.
+    const patchOut: ProfileAnswers = { ...patchIn };
+    if (patchIn.permissions) patchOut.permissions = { ...(profileAnswers?.permissions ?? {}), ...patchIn.permissions };
+    if (patchIn.past_employers) {
+      patchOut.past_employers = {
+        items: [...new Set([...(profileAnswers?.past_employers?.items ?? []), ...(patchIn.past_employers.items ?? [])])],
+      };
+    }
+    await saveApplicationProfile(patchOut);
+    setProfileAnswers((prev) => ({ ...(prev ?? {}), ...patchOut }));
+  }, [profileAnswers]);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   // Loaded up front so job cards can show auto-apply readiness.
   useEffect(() => {
@@ -3687,8 +3720,9 @@ export const JobPage = (): JSX.Element => {
             if (key) recentByCompany[key] = (recentByCompany[key] ?? 0) + 1;
           }
           const country = workableFrom === "ANY" ? null : workableFrom || countryFromText(profile?.location);
-          setBulkPlan(planBulkApply(
-            targetJobs.map((job) => ({
+          setBulkCustomAnswers({});
+          setBulkPlanInputs({
+            jobs: targetJobs.map((job) => ({
               id: job.id,
               title: job.title,
               company: job.company,
@@ -3696,8 +3730,9 @@ export const JobPage = (): JSX.Element => {
               matchScore: job.matchScore ?? null,
               raw_data: job.raw_data,
             })),
-            { country, recentByCompany, answers: profileAnswers },
-          ));
+            country,
+            recentByCompany,
+          });
           setBulkConfirmOpen(true);
           return;
         }
@@ -4338,6 +4373,13 @@ export const JobPage = (): JSX.Element => {
                       : {}),
                 ...(selectedResume?.data ? { resume_data: selectedResume.data } : {}),
                 ...(userEmail ? { email: userEmail } : {}),
+                // Answers typed in the bulk dialog for questions specific to this job.
+                ...(() => {
+                  const custom = Object.entries(bulkCustomAnswersRef.current[job.id] ?? {})
+                    .filter(([, answer]) => answer.trim())
+                    .map(([question, answer]) => ({ question, answer: answer.trim() }));
+                  return custom.length ? { user_input: { custom_answers: custom } } : {};
+                })(),
               };
 
               let automationResult:
@@ -8620,6 +8662,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
         open={bulkConfirmOpen}
         onOpenChange={setBulkConfirmOpen}
         plan={bulkPlan}
+        onSaveProfile={saveProfileFromBulk}
+        customAnswers={bulkCustomAnswers}
+        onCustomAnswerChange={(jobId, label, answer) =>
+          setBulkCustomAnswers((prev) => ({ ...prev, [jobId]: { ...(prev[jobId] ?? {}), [label]: answer } }))}
         onConfirm={(jobIds) => {
           setBulkConfirmOpen(false);
           void applyAllJobs(false, jobIds);

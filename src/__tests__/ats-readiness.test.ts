@@ -27,11 +27,34 @@ describe("getAutoApplyReadiness (application profile)", () => {
 
   it("lists what the profile cannot answer", () => {
     expect(getAutoApplyReadiness(job(["email", "current_salary", "how_heard"]), {}))
-      .toEqual({ state: "needs", missing: ["Current salary", "How you heard about the job"] });
+      .toMatchObject({ state: "needs", missing: ["Current salary", "How you heard about the job"] });
   });
 
   it("needs opt-in before answering why this company", () => {
     expect(getAutoApplyReadiness(job(["why_company"]), profile).state).toBe("needs");
     expect(getAutoApplyReadiness(job(["why_company"]), { ...profile, permissions: { ai_motivation: true } }).state).toBe("ready");
+  });
+});
+
+describe("job-specific questions", () => {
+  const withQuestions = {
+    company: "Holepunch",
+    raw_data: { ats: {
+      questions_known: true, required_question_keys: ["email"], remote_scope: "worldwide", countries: [],
+      questions: [
+        { key: "email", label: "Email", required: true },
+        { key: null, label: "How do you rate your Node.js skills?", required: true },
+        { key: null, label: "Upload your CV", required: true },
+        { key: null, label: "Anything else?", required: false },
+      ],
+    } },
+  };
+  it("counts required questions that map to no profile field", () => {
+    const r = getAutoApplyReadiness(withQuestions, profile);
+    expect(r).toMatchObject({ state: "needs", items: [{ key: null, label: "How do you rate your Node.js skills?" }] });
+  });
+  it("treats answered job-specific questions as covered", () => {
+    const r = getAutoApplyReadiness(withQuestions, profile, null, new Set(["How do you rate your Node.js skills?"]));
+    expect(r.state).toBe("ready");
   });
 });

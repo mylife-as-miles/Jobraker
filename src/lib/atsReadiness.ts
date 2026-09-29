@@ -59,21 +59,36 @@ const LABELS: Record<string, string> = {
   country_residence: "Country you live in",
 };
 
+// A question the profile cannot answer yet. key = canonical profile key, or
+// null for a job-specific question that maps to no profile field.
+export type MissingItem = { key: string | null; label: string };
+
 export type Readiness =
   | { state: "unknown" }
   | { state: "ready" }
-  | { state: "needs"; missing: string[] };
+  | { state: "needs"; missing: string[]; items: MissingItem[] };
+
+// Required questions that are about files or links the resume already covers.
+const FILE_LIKE = /resume|cv|cover letter|attach|upload/i;
 
 // Compares a job's required application questions (stored by the ATS index
 // discovery in raw_data.ats) with the user's application profile, resolved for
 // this job's country and company by the same resolver apply-to-jobs uses.
+// customAnswered: labels of job-specific questions the user already answered.
 export function getAutoApplyReadiness(
   job: { raw_data?: unknown; company?: string | null },
   answers: ProfileAnswers | null,
   residenceCountry: string | null = null,
+  customAnswered: ReadonlySet<string> = new Set(),
 ): Readiness {
   const ats = (job.raw_data as {
-    ats?: { questions_known?: boolean; required_question_keys?: unknown; countries?: unknown; remote_scope?: unknown };
+    ats?: {
+      questions_known?: boolean;
+      required_question_keys?: unknown;
+      questions?: unknown;
+      countries?: unknown;
+      remote_scope?: unknown;
+    };
   } | null)?.ats;
   if (!ats?.questions_known || !Array.isArray(ats.required_question_keys)) return { state: "unknown" };
   const facts = {
@@ -82,10 +97,26 @@ export function getAutoApplyReadiness(
     remoteScope: typeof ats.remote_scope === "string" ? ats.remote_scope : null,
     residenceCountry,
   };
-  const missing: string[] = [];
+  const items: MissingItem[] = [];
+  const seen = new Set<string>();
+  const add = (item: MissingItem) => {
+    const id = item.key ?? `custom:${item.label}`;
+    if (!seen.has(id)) { seen.add(id); items.push(item); }
+  };
   for (const key of ats.required_question_keys) {
     if (typeof key !== "string" || isAnswerable(key, answers ?? {}, facts)) continue;
-    missing.push(LABELS[key] ?? key.replace(/_/g, " "));
+    add({ key, label: LABELS[key] ?? key.replace(/_/g, " ") });
   }
-  return missing.length ? { state: "needs", missing: [...new Set(missing)] } : { state: "ready" };
+  // Required questions that map to no profile field (only when the full
+  // question list was stored).
+  if (Array.isArray(ats.questions)) {
+    for (const q of ats.questions as Array<{ key?: unknown; label?: unknown; required?: unknown }>) {
+      const label = typeof q?.label === "string" ? q.label.trim() : "";
+      if (!q?.required || q.key || !label || FILE_LIKE.test(label) || customAnswered.has(label)) continue;
+      add({ key: null, label });
+    }
+  }
+  return items.length
+    ? { state: "needs", missing: items.map((i) => i.label), items }
+    : { state: "ready" };
 }

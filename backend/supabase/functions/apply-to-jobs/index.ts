@@ -1356,6 +1356,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 6b. Answers the user typed before launch for questions specific to this job.
+    const customAnswers: any[] = Array.isArray(userInput?.custom_answers) ? userInput.custom_answers : [];
+    for (const item of customAnswers.slice(0, 20)) {
+      const question = typeof item?.question === "string" ? item.question.trim().slice(0, 500) : "";
+      const answer = typeof item?.answer === "string" ? item.answer.trim().slice(0, 2000) : "";
+      if (!question || !answer) continue;
+      screeningAnswers.push({
+        questionText: question,
+        value: answer,
+        category: "general",
+        provenance: { source: "user_answer" },
+        confidence: 1,
+        mutable: false,
+        requiresUserInput: false,
+      });
+    }
+
     // 7. Application profile answers. Jobs with known questions get an answer
     // per exact question label; other jobs get the profile's answers under
     // generic wording so the agent can use them if the form asks.

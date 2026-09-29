@@ -86,12 +86,16 @@ export async function saveApplicationProfile(answers: ProfileAnswers): Promise<v
     const r = resolveProfileAnswer(key, answers, home);
     return r && typeof r.value === "boolean" ? r.value : null;
   };
+  // Callers may save a subset of keys (for example from the bulk dialog), so
+  // keep current legacy values for anything not in this save.
+  const current = await fetchWorkEligibility().catch(() => null);
+  const pick = <T,>(next: T | null, prev: T | null | undefined): T | null => (next !== null ? next : prev ?? null);
   await saveWorkEligibility({
-    work_authorized: asBool("work_authorization"),
-    requires_visa_sponsorship: asBool("sponsorship"),
-    desired_salary: answers.expected_salary?.text ?? null,
-    has_security_clearance: typeof answers.security_clearance?.has === "boolean" ? answers.security_clearance.has : null,
-    willing_to_relocate: typeof answers.relocation?.willing === "boolean" ? answers.relocation.willing : null,
+    work_authorized: pick(asBool("work_authorization"), current?.work_authorized),
+    requires_visa_sponsorship: pick(asBool("sponsorship"), current?.requires_visa_sponsorship),
+    desired_salary: pick(answers.expected_salary?.text ?? null, current?.desired_salary),
+    has_security_clearance: pick(typeof answers.security_clearance?.has === "boolean" ? answers.security_clearance.has : null, current?.has_security_clearance),
+    willing_to_relocate: pick(typeof answers.relocation?.willing === "boolean" ? answers.relocation.willing : null, current?.willing_to_relocate),
   }).catch(() => undefined);
 }
 
