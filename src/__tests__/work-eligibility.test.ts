@@ -48,9 +48,10 @@ describe("apply-to-jobs eligibility contract", () => {
   });
 
   it("falls back to the profile when the request has no answer", () => {
-    expect(source).toMatch(/requestWorkAuthVal \?\? profileWorkAuthorized/);
-    expect(source).toMatch(/requestSponsorshipVal \?\? profileRequiresSponsorship/);
-    expect(source).toMatch(/security_clearance \?\? profileHasClearance/);
-    expect(source).toMatch(/willing_to_relocate \?\? profileWillingToRelocate/);
+    // Request value first, then the application profile, then legacy columns.
+    expect(source).toMatch(/requestWorkAuthVal \?\? resolvedBool\("work_authorization"\) \?\? profileWorkAuthorized/);
+    expect(source).toMatch(/requestSponsorshipVal \?\? resolvedBool\("sponsorship"\) \?\? profileRequiresSponsorship/);
+    expect(source).toMatch(/security_clearance \?\? resolvedBool\("security_clearance"\) \?\? profileHasClearance/);
+    expect(source).toMatch(/willing_to_relocate \?\? resolvedBool\("relocation"\) \?\? profileWillingToRelocate/);
   });
 });
