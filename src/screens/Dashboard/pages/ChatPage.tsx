@@ -73,20 +73,11 @@ import {
   commitVoiceInterimTranscript,
   mergeVoiceTranscript,
 } from "@/lib/chat/voiceTranscript";
-import {
-  generateChatStarters,
-  type ChatStarterIcon,
-  type ChatStarterSuggestion,
-} from "../../../services/ai/generateChatStarters";
+import { ChatActionGrid } from "@/components/chat/ChatActionGrid";
+import type { ChatAction } from "@/lib/chat/chatActions";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { ColdMailSkillCard } from "@/components/chat/ColdMailSkillCard";
 import { ColdMailTargetSelectionCard } from "@/components/chat/ColdMailTargetSelectionCard";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import { ThinkingOrb } from "thinking-orbs";
 import {
@@ -104,7 +95,6 @@ import { isExportableDocument } from "@/utils/document-pdf-export";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
-import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
 import { RecruiterOutreachPresetModal } from "@/components/chat/RecruiterOutreachPresetModal";
 import { ChatPresetUserMessage } from "@/components/chat/ChatPresetUserMessage";
 import {
@@ -160,7 +150,6 @@ import {
   Trash2,
   Edit2,
   Bot,
-  Bolt,
   BookOpen,
   Paperclip,
   ArrowUp,
@@ -169,9 +158,6 @@ import {
   X,
   History,
   ListChecks,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Mic,
   Maximize2,
   Minimize2,
@@ -475,17 +461,6 @@ const getChatSessionTitle = (session: ChatSessionState): string =>
     ? deriveChatTitle(session.messages) || "New Chat"
     : session.title;
 
-const CHAT_STARTER_ICONS: Record<
-  ChatStarterIcon,
-  React.ComponentType<{ className?: string }>
-> = {
-  resume: FileText,
-  jobs: Search,
-  interview: MessageSquare,
-  "cover-letter": BookOpen,
-  applications: Target,
-  strategy: Bolt,
-};
 
 const isLegacyQueuedAssistant = (message: any) =>
   message?.role === "assistant" &&
@@ -2674,14 +2649,9 @@ export const ChatPage = () => {
     null,
   );
   const [renamingTitle, setRenamingTitle] = useState("");
-  const [starterSuggestions, setStarterSuggestions] = useState<
-    ChatStarterSuggestion[]
-  >([]);
-  const [loadingStarterSuggestions, setLoadingStarterSuggestions] =
-    useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const [activePresetRecipeId, setActivePresetRecipeId] = useState<string | null>(null);
+  const [, setActivePresetRecipeId] = useState<string | null>(null);
   const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [presetRecipeForModal, setPresetRecipeForModal] = useState<string>("recruiter_cold_outreach");
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
@@ -2794,34 +2764,6 @@ export const ChatPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!hasChatAccess) {
-      setLoadingStarterSuggestions(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadStarterSuggestions = async () => {
-      setLoadingStarterSuggestions(true);
-      try {
-        const suggestions = await generateChatStarters();
-        if (!cancelled && suggestions.length > 0) {
-          setStarterSuggestions(suggestions);
-        }
-      } catch (error) {
-        console.error("Failed to load AI chat starters", error);
-      } finally {
-        if (!cancelled) setLoadingStarterSuggestions(false);
-      }
-    };
-
-    void loadStarterSuggestions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hasChatAccess]);
 
   // Chat logic
   const chat = useChat({
@@ -2989,14 +2931,6 @@ export const ChatPage = () => {
     },
     [updateApprovalDecision],
   );
-  const [proTipIndex, setProTipIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setProTipIndex((prev) => (prev + 1) % 4);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (status !== "in_progress") return;
@@ -3125,24 +3059,6 @@ export const ChatPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePersonaChange = useCallback(
-    (newPersona: Persona) => {
-      setPersona(newPersona);
-      const newMode: ChatMode = newPersona === "analyst" ? "agent" : "ask";
-      if (activeSessionId) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === activeSessionId ? { ...s, persona: newMode } : s,
-          ),
-        );
-        void supabase
-          .from("chat_sessions")
-          .update({ persona: newMode })
-          .eq("id", activeSessionId);
-      }
-    },
-    [activeSessionId, supabase],
-  );
 
   const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -3159,11 +3075,7 @@ export const ChatPage = () => {
     if (active) {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
-      if (active.persona === "agent") {
-        setPersona("analyst");
-      } else if (active.persona === "ask") {
-        setPersona("concise");
-      }
+      setPersona("analyst");
     }
   }, [activeSessionId, sessions, setMessages, setResponseId, status]);
 
@@ -3763,6 +3675,18 @@ export const ChatPage = () => {
   // real data instead of dropping them into a blank chat.
   const handleSubmitRef = useRef(handleSubmit);
   handleSubmitRef.current = handleSubmit;
+
+  // One-click actions from the chat home grid: run the task straight away.
+  const handleChatAction = (action: ChatAction) => {
+    if (isChatBusy) return;
+    if (action.kind === "preset") {
+      setActivePresetRecipeId(action.recipeId);
+      setPresetRecipeForModal(action.recipeId);
+      setPresetModalOpen(true);
+      return;
+    }
+    void handleSubmit({ text: action.prompt });
+  };
   useEffect(() => {
     const handleRewriteSelection = (event: Event) => {
       const selectedText = (
@@ -4399,166 +4323,15 @@ export const ChatPage = () => {
                       you today?
                     </h2>
                     <p className='text-muted-foreground text-xs md:text-sm max-w-md mx-auto'>
-                      Your autonomous career partner. Ask me to optimize your
-                      resume, find roles, or practice interviews.
+                      Pick a task and I will take it from there. You can also type your own request.
                     </p>
 
-                    {loadingStarterSuggestions ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 mt-3 md:mt-4 w-full'>
-                        {Array.from({ length: 3 }).map((_, idx) => (
-                          <div
-                            key={`starter-skeleton-${idx}`}
-                            className='suggestion-card glass-panel p-3 md:p-3.5 rounded-xl text-left flex flex-col justify-between min-h-[96px] animate-pulse pointer-events-none'
-                          >
-                            <div>
-                              <div className='w-4 h-4 rounded-lg bg-foreground/10 mb-2 border border-border/5' />
-                              <div className='h-3.5 bg-foreground/15 rounded w-2/3 mb-1.5' />
-                              <div className='space-y-1'>
-                                <div className='h-2.5 bg-foreground/5 rounded w-full' />
-                                <div className='h-2.5 bg-foreground/5 rounded w-5/6' />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : starterSuggestions.length > 0 ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-3 mt-3 md:mt-4 w-full'>
-                        {starterSuggestions.map((suggestion) => {
-                          const Icon =
-                            CHAT_STARTER_ICONS[suggestion.icon] || FileText;
-
-                          return (
-                            <button
-                              key={suggestion.id}
-                              onClick={() => {
-                                setText(suggestion.prompt);
-                                setCaretPosition(suggestion.prompt.length);
-                              }}
-                              className='suggestion-card glass-panel p-3 md:p-3.5 rounded-xl text-left transition-all group min-h-[96px] flex flex-col justify-between'
-                            >
-                              <div>
-                                <Icon className='text-brand mb-1.5 w-4 h-4' />
-                                <h4 className='font-semibold text-xs mb-1 text-card-foreground'>
-                                  {suggestion.title}
-                                </h4>
-                                <p className='text-[11px] text-muted-foreground leading-snug line-clamp-3'>
-                                  {suggestion.description}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {loadingStarterSuggestions ? (
-                      <p className='text-xs text-muted-foreground animate-pulse mt-2'>
-                        Personalizing your AI starter prompts...
-                      </p>
-                    ) : (
-                      (() => {
-                        const proTips = [
-                          {
-                            title: "Pro Tip: Recruiter & Hiring Manager Scout",
-                            command: "/recruiter-scout",
-                            prompt: "/recruiter-scout ",
-                            description: "Want to bypass automated job portals? Use the ",
-                            descriptionSuffix: " command to find verified recruiter & hiring manager contact emails for target companies or your latest application.",
-                          },
-                          {
-                            title: "Pro Tip: Direct Outreach for Sales & Marketing",
-                            command: "/direct-apply",
-                            prompt: "/direct-apply ",
-                            description: "Are you in Sales or Marketing? You can use the ",
-                            descriptionSuffix: " command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.",
-                          },
-                          {
-                            title: "Pro Tip: AI Resume Tailor",
-                            command: "/resume-tailor",
-                            prompt: "/resume-tailor ",
-                            description: "Tailor your resume for any role! Use the ",
-                            descriptionSuffix: " command to analyze job requirements, match keywords, and optimize your resume for high ATS pass rates.",
-                          },
-                          {
-                            title: "Pro Tip: Application Follow-up Assistant",
-                            command: "/follow-up",
-                            prompt: "/follow-up ",
-                            description: "Applied to a job recently? Use the ",
-                            descriptionSuffix: " command to draft personalized follow-up messages and check application status with recruiters.",
-                          },
-                        ];
-
-                        const currentTip = proTips[proTipIndex % proTips.length];
-
-                        return (
-                          <div className='glass-panel mt-3 md:mt-4 p-3 md:p-3.5 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3 items-start mx-auto relative group'>
-                            <div className='p-1.5 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
-                              <Sparkles size={14} />
-                            </div>
-
-                            <div className='flex-1 min-w-0 pr-14'>
-                              <h4 className='text-[11px] font-semibold text-foreground/95 mb-0.5 flex items-center gap-1.5'>
-                                {currentTip.title}
-                              </h4>
-                              <p className='text-[11px] text-muted-foreground leading-relaxed'>
-                                {currentTip.description}
-                                <button
-                                  type='button'
-                                  onClick={() => {
-                                    setText(currentTip.prompt);
-                                    if (textareaRef.current) textareaRef.current.focus();
-                                  }}
-                                  className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1 py-0.2 rounded transition-all text-[10px] inline-flex items-center gap-1'
-                                >
-                                  {currentTip.command}
-                                </button>
-                                {currentTip.descriptionSuffix}
-                              </p>
-
-                              {/* Carousel Dots */}
-                              <div className='flex items-center gap-1 mt-2'>
-                                {proTips.map((_, idx) => (
-                                  <button
-                                    key={idx}
-                                    type='button'
-                                    onClick={() => setProTipIndex(idx)}
-                                    aria-label={`Go to slide ${idx + 1}`}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                                      idx === proTipIndex % proTips.length
-                                        ? "w-5 bg-brand"
-                                        : "w-1.5 bg-brand/20 hover:bg-brand/40"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Carousel Navigation Buttons */}
-                            <div className='flex items-center gap-1 shrink-0 self-center absolute right-3 top-3.5 opacity-80 group-hover:opacity-100 transition-opacity'>
-                              <button
-                                type='button'
-                                onClick={() =>
-                                  setProTipIndex((prev) => (prev === 0 ? proTips.length - 1 : prev - 1))
-                                }
-                                aria-label='Previous Pro Tip'
-                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
-                              >
-                                <ChevronLeft size={13} />
-                              </button>
-                              <button
-                                type='button'
-                                onClick={() =>
-                                  setProTipIndex((prev) => (prev + 1) % proTips.length)
-                                }
-                                aria-label='Next Pro Tip'
-                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
-                              >
-                                <ChevronRight size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    )}
+                    <div className='mt-3 md:mt-4 w-full'>
+                      <ChatActionGrid
+                        disabled={isChatBusy}
+                        onAction={handleChatAction}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -5302,55 +5075,6 @@ export const ChatPage = () => {
                           : "row-start-2 md:row-start-1"
                       }`}
                     >
-                      <ChatPresetsBar
-                        activeRecipeId={activePresetRecipeId}
-                        onSelectRecipe={(id) => {
-                          setActivePresetRecipeId(id);
-                          setPresetRecipeForModal(id);
-                          setPresetModalOpen(true);
-                        }}
-                      />
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="group flex max-w-[8.75rem] items-center gap-1 rounded-full border border-border bg-foreground/5 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground sm:max-w-none sm:px-3"
-                          >
-                            <span className="truncate">
-                              {persona === "concise" ? "Ask: plan" : "Agent: do work"}
-                            </span>
-                            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          side="top"
-                          align="end"
-                          sideOffset={8}
-                          className="z-[70] w-40"
-                        >
-                          <DropdownMenuItem
-                            onSelect={() => handlePersonaChange("concise")}
-                            className={`px-3 py-2 text-xs font-semibold ${
-                              persona === "concise"
-                                ? "bg-brand/10 text-brand"
-                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                            }`}
-                          >
-                            Ask: plan
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => handlePersonaChange("analyst")}
-                            className={`px-3 py-2 text-xs font-semibold ${
-                              persona === "analyst"
-                                ? "bg-brand/10 text-brand"
-                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                            }`}
-                          >
-                            Agent: do work
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
 
                       {/* Voice Mic Button */}
                       <button
