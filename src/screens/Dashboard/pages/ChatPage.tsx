@@ -2881,13 +2881,6 @@ export const ChatPage = () => {
       // had already approved, which read as the card looping.
       for (const step of request.steps) {
         approvedToolCallKeysRef.current.add(step.approvalKey);
-        if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
-        const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
-        if (slugMatch?.[1]) {
-          approvedToolCallKeysRef.current.add(
-            slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
-          );
-        }
       }
 
       // Immutably update messages state so the card turns into "Plan approved" immediately
@@ -2936,14 +2929,6 @@ export const ChatPage = () => {
     [append, isChatBusy, messages, setMessages, scrollToBottom],
   );
 
-  const handleApprovalAdjust = useCallback(
-    (_request: AgentApprovalRequest) => {
-      if (isChatBusy) return;
-      setText("Please adjust the plan: ");
-      window.setTimeout(() => textareaRef.current?.focus(), 0);
-    },
-    [isChatBusy],
-  );
 
   const handleApprovalDecline = useCallback(
     (request: AgentApprovalRequest) => {
@@ -3562,56 +3547,14 @@ export const ChatPage = () => {
       .update({ persona: mode, model })
       .eq("id", sessionId);
 
-    const userTextTrimmed = content.trim().toLowerCase();
-    const isApprovalIntent =
-      /^(approved|approve|yes|continue|proceed|confirm|go ahead|send(?: it| them)?)/i.test(userTextTrimmed);
-
-    let effectiveMessages = currentMessages;
-    let pendingStepsToExecute: AgentApprovalStep[] = [];
-    if (isApprovalIntent) {
-      const lastPendingApproval = [...currentMessages]
-        .reverse()
-        .find((m) => m.approvalRequest && !m.approvalRequest.decision);
-      if (lastPendingApproval?.approvalRequest) {
-        pendingStepsToExecute = lastPendingApproval.approvalRequest.steps;
-        effectiveMessages = currentMessages.map((m) =>
-          m.approvalRequest?.id === lastPendingApproval.approvalRequest!.id
-            ? {
-                ...m,
-                approvalRequest: {
-                  ...m.approvalRequest,
-                  decision: "approved" as const,
-                },
-              }
-            : m,
-        );
-        setMessages(effectiveMessages);
-        for (const step of lastPendingApproval.approvalRequest.steps) {
-          approvedToolCallKeysRef.current.add(step.approvalKey);
-          if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
-          const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
-          if (slugMatch?.[1]) {
-            approvedToolCallKeysRef.current.add(
-              slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
-            );
-          }
-        }
-      }
-    }
-
+    // Approvals only come from the approval card buttons. Typed text such as
+    // "send it" is a normal request, so a next-step button whose prompt starts
+    // with "Send" can never approve a pending card by accident.
+    const effectiveMessages = currentMessages;
     const approvedToolCalls =
-      pendingStepsToExecute.length > 0
-        ? pendingStepsToExecute.map((step) => ({
-            approvalKey: step.approvalKey,
-            toolName: step.toolName,
-            toolSlug: step.toolName,
-            args: step.args,
-          }))
-        : approvedToolCallKeysRef.current.size > 0
+      approvedToolCallKeysRef.current.size > 0
         ? Array.from(approvedToolCallKeysRef.current).map((key) => ({
             approvalKey: key,
-            toolName: key,
-            toolSlug: key,
           }))
         : undefined;
 
@@ -3623,7 +3566,7 @@ export const ChatPage = () => {
       },
       {
         model,
-        webSearch: isApprovalIntent ? false : (mode === "agent"),
+        webSearch: mode === "agent",
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
         approvedToolCalls,
@@ -4790,7 +4733,6 @@ export const ChatPage = () => {
                                 request={m.approvalRequest}
                                 disabled={isChatBusy}
                                 onApprove={handleApprovalApprove}
-                                onAdjust={handleApprovalAdjust}
                                 onDecline={handleApprovalDecline}
                               />
                             ) : null}

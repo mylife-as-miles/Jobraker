@@ -275,7 +275,7 @@ function isToolApproved(
   toolName: string,
   args: Record<string, unknown>,
   approvedToolCallKeys: Set<string>,
-  lastUserText: string,
+  _lastUserText: string,
 ): boolean {
   const approvalKey = createAgentApprovalKey(toolName, args);
   if (approvedToolCallKeys.has(approvalKey)) return true;
@@ -299,14 +299,8 @@ function isToolApproved(
     }
   }
 
-  // If the user's latest message is explicitly confirming or approving
-  const trimmed = lastUserText.trim().toLowerCase();
-  if (/^(approved|approve|yes|continue|proceed|go ahead|confirm|send(?: it| them)?)/i.test(trimmed)) {
-    if (approvedToolCallKeys.size > 0 || trimmed.includes("approve")) {
-      return true;
-    }
-  }
-
+  // Approval comes only from the approval card, which sends exact keys.
+  // Message text ("yes", "send it", a next-step button prompt) never approves.
   return false;
 }
 
@@ -4441,12 +4435,12 @@ Deno.serve(async (req) => {
     if (Array.isArray(approvedToolCallsInput)) {
       for (const entry of approvedToolCallsInput) {
         if (isRecord(entry)) {
+          // Only exact tool+args keys count. Adding bare tool names here used
+          // to approve every later call of that tool (e.g. any apply_to_job),
+          // including steps the user left unticked on the card.
           const key = asString(entry.approval_key) || asString(entry.approvalKey);
           if (key) approvedToolCallKeys.add(key);
-          const slug = asString(entry.tool_slug) || asString(entry.toolSlug);
-          if (slug) approvedToolCallKeys.add(slug.toUpperCase().replace(/[^A-Z0-9_]/g, ""));
           const name = asString(entry.tool_name) || asString(entry.toolName);
-          if (name) approvedToolCallKeys.add(name);
 
           const entryArgs = isRecord(entry.args) ? (entry.args as Record<string, unknown>) : null;
           if (name && entryArgs && Object.keys(entryArgs).length > 0) {
