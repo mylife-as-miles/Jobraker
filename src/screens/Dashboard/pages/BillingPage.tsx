@@ -300,7 +300,12 @@ function getPlanPricingDisplay(
   promoApplied = false,
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === planName);
-  const originalMonthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+  // The monthly charge comes from subscription_plans (init-payment), so show
+  // that price when present; the catalog price is the fallback.
+  const originalMonthly =
+    Number.isFinite(fallbackMonthlyFromDb) && fallbackMonthlyFromDb > 0
+      ? fallbackMonthlyFromDb
+      : def?.monthlyPriceUsd ?? 0;
   const monthly = promoApplied
     ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
     : originalMonthly;
@@ -1622,7 +1627,7 @@ export const BillingPage = () => {
                 </div>
               </div>
 
-              <div className='grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'>
+              <div className='grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5'>
                 {plans.map((plan, index) => {
                   const cycleForCurrent =
                     activeSubscriptionBillingCycle ?? "monthly";
@@ -1744,7 +1749,7 @@ export const BillingPage = () => {
                                     {plan.name}
                                   </h3>
                                   <p
-                                    className={`mt-1 line-clamp-3 text-sm leading-snug ${textColors.secondary}`}
+                                    className={`mt-1 text-sm leading-snug ${textColors.secondary}`}
                                   >
                                     {plan.description}
                                   </p>
