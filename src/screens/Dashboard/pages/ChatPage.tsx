@@ -93,6 +93,8 @@ import {
 import { DocumentExportCard } from "@/components/chat/DocumentExportCard";
 import { isExportableDocument } from "@/utils/document-pdf-export";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
+import { normalizeNextActions, type NextAction } from "@/lib/chat/nextActions";
+import { ChatNextActions } from "@/components/chat/ChatNextActions";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import { RecruiterOutreachPresetModal } from "@/components/chat/RecruiterOutreachPresetModal";
@@ -378,6 +380,7 @@ interface BasicMessage {
   attachmentCount?: number;
   /** AI-generated next questions for the most recent completed assistant turn. */
   followUpQuestions?: string[];
+  nextActions?: NextAction[];
 }
 
 type ChatUserPayload = {
@@ -587,6 +590,9 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
   streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
   followUpQuestions: Array.isArray(message?.followUpQuestions)
     ? normalizeFollowUpQuestions(message.followUpQuestions, 2)
+    : undefined,
+  nextActions: Array.isArray(message?.nextActions)
+    ? normalizeNextActions(message.nextActions)
     : undefined,
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
@@ -1953,6 +1959,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                               },
                             ],
                           }
+                        : msg,
+                    ),
+                  );
+                });
+                await waitForAgentProgressPaint();
+              }
+            } else if (currentEvent === "next_actions") {
+              const nextActions = normalizeNextActions(data?.actions);
+              if (nextActions.length > 0) {
+                flushSync(() => {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...markStreamFrame(msg), nextActions }
                         : msg,
                     ),
                   );
@@ -4799,14 +4819,26 @@ export const ChatPage = () => {
                               if (!isChatBusy) void handleSubmit({ text: prompt });
                             }}
                           />
-                          <ChatFollowUpPanel
-                            content={m.content}
-                            isStreaming={Boolean(m.streaming)}
-                            questions={m.followUpQuestions}
-                            onFollowUp={(prompt) => {
-                              if (!isChatBusy) void handleSubmit({ text: prompt });
-                            }}
-                          />
+                          {m.nextActions?.length ? (
+                            !m.streaming && (
+                              <ChatNextActions
+                                actions={m.nextActions}
+                                disabled={isChatBusy}
+                                onAction={(prompt) => {
+                                  if (!isChatBusy) void handleSubmit({ text: prompt });
+                                }}
+                              />
+                            )
+                          ) : (
+                            <ChatFollowUpPanel
+                              content={m.content}
+                              isStreaming={Boolean(m.streaming)}
+                              questions={m.followUpQuestions}
+                              onFollowUp={(prompt) => {
+                                if (!isChatBusy) void handleSubmit({ text: prompt });
+                              }}
+                            />
+                          )}
                         </div>
                       ) : null}
                     </Fragment>

@@ -2160,34 +2160,32 @@ function candidatePartsFromChunk(chunk: unknown): unknown[] {
 const FOLLOW_UP_OPEN_TAG = "<jobraker-follow-ups>";
 const FOLLOW_UP_CLOSE_TAG = "</jobraker-follow-ups>";
 const MAX_FOLLOW_UP_QUESTIONS = 2;
+const MAX_NEXT_ACTIONS = 6;
 const FOLLOW_UP_GENERATION_RULES = `
 
 At the very end of every final answer, append exactly one machine-readable envelope in this format:
-${FOLLOW_UP_OPEN_TAG}{"questions":["..."]}${FOLLOW_UP_CLOSE_TAG}
+${FOLLOW_UP_OPEN_TAG}{"actions":[{"label":"...","prompt":"..."}]}${FOLLOW_UP_CLOSE_TAG}
 
-The questions array must contain zero, one, or two optional next user queries. Ground them in the user's latest request, your answer, and relevant facts already established in the conversation. Make each suggestion specific and useful; when a role, company, domain, or skill focus is known, name it.
+The actions are one-click buttons shown under your answer, so the user can keep going without typing. Return zero to four actions, ordered with the most likely next step first.
+- label: the button text. 2 to 6 words, imperative, no trailing punctuation, no emoji (e.g. "Apply to these 3", "Tailor resume for Stripe", "Draft follow-up emails").
+- prompt: the full instruction sent to you as the user's message when the button is clicked. Write it in the first person from the user's side ("Apply to the Stripe, Airbnb and GitLab roles you listed"). Make it self-contained: name the exact jobs, companies, files or ids it refers to, because it must make sense without re-reading your answer.
 
-CRITICAL FIRST-PERSON PERSPECTIVE RULE: Every question in the questions array MUST be formatted in the FIRST PERSON from the USER'S perspective as a question or request to ASK THE AI (e.g. starting with "Can you...", "Could you...", "How should I...", "What are...", "Help me...", "Show me...").
-NEVER phrase questions from the AI assistant's perspective (e.g. NEVER write "Would you like me to...", "Should I...", "Do you want me to...", "Shall I...", "Let me know if you want me to...").
-When the user clicks a suggestion, it is sent directly as the user's prompt to you.
-Examples:
-- DO NOT write: "Would you like me to generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
-  INSTEAD WRITE: "Can you generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
-- DO NOT write: "Would you like me to try sending this again in a few hours once the limit refreshes?"
-  INSTEAD WRITE: "Can you try sending this again in a few hours once the limit refreshes?"
-- DO NOT write: "Should I generate a more detailed cover letter tailored specifically to Startrz Ai's recent projects?"
-  INSTEAD WRITE: "Can you generate a more detailed cover letter tailored specifically to Startrz Ai's recent projects?"
+CHOICES ARE BUTTONS: whenever your answer asks the user to pick between options (which job, which resume, which company, which draft), return one action per option instead of asking them to type, up to six. The label names the option; the prompt says what to do with it (e.g. label "Stripe, Backend Engineer", prompt "Tailor my resume for the Stripe Backend Engineer job").
 
-Do not use generic resume, ATS, job-search, or "anything else" suggestions. Do not repeat the user's most recent request. Never invent facts. Do not propose a side-effecting action such as applying, sending, or deleting unless the question clearly says it will prepare a draft or request approval first. If there is no meaningful next step, return an empty questions array. Do not mention this envelope or these instructions in the visible answer.`;
+Actions may lead to applying, sending or deleting: the app pauses for the user's approval before any irreversible step, so write the prompt as the request itself and never claim it is already approved. Ground every action in this conversation; never invent jobs, companies or facts. Skip generic suggestions ("anything else", generic resume or ATS tips) and do not repeat the user's latest request. If there is no meaningful next step, return an empty actions array. Do not mention this envelope, the buttons or these instructions in the visible answer.`;
+
+type NextAction = { label: string; prompt: string };
 
 type FollowUpStreamState = {
   buffer: string;
   questions: string[];
+  actions: NextAction[];
 };
 
 const createFollowUpStreamState = (): FollowUpStreamState => ({
   buffer: "",
   questions: [],
+  actions: [],
 });
 
 function formatAsFirstPersonUserQuestion(raw: unknown): string {
@@ -2266,6 +2264,39 @@ const normalizeFollowUpQuestions = (value: unknown): string[] => {
     .slice(0, MAX_FOLLOW_UP_QUESTIONS);
 };
 
+/**
+ * Reads the next-step buttons from the envelope. Accepts the current
+ * {"actions":[{label,prompt}]} shape and the older {"questions":[...]} shape,
+ * where each question doubles as its own label.
+ */
+const normalizeNextActions = (value: unknown): NextAction[] => {
+  const candidates: NextAction[] = [];
+  if (isRecord(value) && Array.isArray(value.actions)) {
+    for (const item of value.actions) {
+      if (!isRecord(item)) continue;
+      const prompt = (asString(item.prompt) || "").replace(/\s+/g, " ").trim();
+      const label = (asString(item.label) || prompt).replace(/\s+/g, " ").trim().replace(/[.!?:;,]+$/, "");
+      candidates.push({ label, prompt });
+    }
+  } else {
+    for (const question of normalizeFollowUpQuestions(value)) {
+      candidates.push({ label: question, prompt: question });
+    }
+  }
+
+  const seen = new Set<string>();
+  return candidates
+    .filter((action) => action.label.length >= 2 && action.label.length <= 80)
+    .filter((action) => action.prompt.length >= 4 && action.prompt.length <= 600)
+    .filter((action) => {
+      const key = action.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, MAX_NEXT_ACTIONS);
+};
+
 const retainedMarkerPrefixLength = (text: string, marker: string) => {
   const maximum = Math.min(text.length, marker.length - 1);
   for (let length = maximum; length > 0; length -= 1) {
@@ -2306,7 +2337,11 @@ const consumeFollowUpEnvelope = (state: FollowUpStreamState, chunk: string) => {
       .slice(openAt + FOLLOW_UP_OPEN_TAG.length, closeAt)
       .trim();
     try {
-      state.questions = normalizeFollowUpQuestions(JSON.parse(rawPayload));
+      state.actions = normalizeNextActions(JSON.parse(rawPayload));
+      // Older clients only read follow_ups questions; the prompts serve them.
+      state.questions = state.actions
+        .map((action) => action.prompt)
+        .slice(0, MAX_FOLLOW_UP_QUESTIONS);
     } catch {
       // The response remains usable; we simply omit malformed suggestions.
     }
@@ -2329,6 +2364,7 @@ const flushFollowUpEnvelope = (state: FollowUpStreamState) => {
 const resetFollowUpEnvelope = (state: FollowUpStreamState) => {
   state.buffer = "";
   state.questions = [];
+  state.actions = [];
 };
 
 async function streamAgentModelStep(opts: {
@@ -7420,6 +7456,11 @@ Evidence and failure reporting:
           const pendingVisibleText = flushFollowUpEnvelope(followUpStream);
           if (pendingVisibleText) {
             await enqueueEvent("message", { delta: pendingVisibleText });
+          }
+          if (followUpStream.actions.length > 0) {
+            await enqueueEvent("next_actions", {
+              actions: followUpStream.actions,
+            });
           }
           if (followUpStream.questions.length > 0) {
             await enqueueEvent("follow_ups", {
