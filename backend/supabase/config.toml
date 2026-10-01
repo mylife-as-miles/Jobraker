@@ -579,7 +579,8 @@ verify_jwt = true
 entrypoint = "./functions/get-jobs/index.ts"
 
 [functions.get-run]
-enabled = true
+# Skyvern is not used; disabled and deleted from production (2026-10-01).
+enabled = false
 verify_jwt = true
 entrypoint = "./functions/get-run/index.ts"
 
@@ -671,7 +672,8 @@ verify_jwt = false
 entrypoint = "./functions/ats-sync/index.ts"
 
 [functions.skyvern-webhook]
-enabled = true
+# Skyvern is not used; disabled and deleted from production (2026-10-01).
+enabled = false
 # Provider status callbacks (RTRVR/Skyvern) cannot include a Supabase JWT, so the
 # gateway rejected every one with 401 before the handler ran. Authenticity is
 # enforced inside the function by verifyWebhookSignature (HMAC-SHA256 over the
