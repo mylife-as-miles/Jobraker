@@ -105,3 +105,75 @@ export const CHAT_ACTIONS: ChatAction[] = [
       "Summarize my applications: counts by status, what needs my action this week, and anything that has gone stale.",
   },
 ];
+
+// Actions offered from other pages ("Ask AI" menus). Each prompt names the
+// record so the agent can find it without asking which one.
+export interface ContextChatAction {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
+interface JobRef {
+  id: string;
+  title: string;
+  company: string;
+  apply_url?: string | null;
+}
+
+interface ApplicationRef {
+  id: string;
+  job_title?: string | null;
+  company?: string | null;
+  status?: string | null;
+}
+
+const describeJob = (job: JobRef) =>
+  `the ${job.title} job at ${job.company} (job id ${job.id}${job.apply_url ? `, ${job.apply_url}` : ""})`;
+
+export function jobChatActions(job: JobRef): ContextChatAction[] {
+  const target = describeJob(job);
+  return [
+    {
+      id: "job_fit",
+      label: "Is this a good fit for me?",
+      prompt: `Evaluate how well my profile and resume fit ${target}. Give a clear verdict, the main gaps, and whether I should apply.`,
+    },
+    {
+      id: "job_cover_letter",
+      label: "Write a cover letter",
+      prompt: `Write a cover letter for ${target}, using my resume.`,
+    },
+    {
+      id: "job_recruiter",
+      label: "Find the recruiter and draft an email",
+      prompt: `Find recruiter or hiring manager contacts for ${target} and draft a short outreach email. Do not send anything.`,
+    },
+    {
+      id: "job_interview",
+      label: "Prepare me for the interview",
+      prompt: `Build an interview prep pack for ${target}: likely questions, strong answers grounded in my resume, and questions I should ask.`,
+    },
+  ];
+}
+
+export function applicationChatActions(app: ApplicationRef): ContextChatAction[] {
+  const target = `my application for ${app.job_title || "this role"} at ${app.company || "this company"} (application id ${app.id}${app.status ? `, status ${app.status}` : ""})`;
+  return [
+    {
+      id: "app_follow_up",
+      label: "Draft a follow-up email",
+      prompt: `Draft a short, polite follow-up email for ${target}. Do not send anything.`,
+    },
+    {
+      id: "app_interview",
+      label: "Prepare me for the interview",
+      prompt: `Build an interview prep pack for ${target}: likely questions, strong answers grounded in my resume, and questions I should ask.`,
+    },
+    {
+      id: "app_next_step",
+      label: "What should I do next?",
+      prompt: `Look at ${target} and tell me the single best next step, then offer to do it.`,
+    },
+  ];
+}

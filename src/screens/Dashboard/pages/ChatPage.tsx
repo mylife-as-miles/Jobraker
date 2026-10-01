@@ -3486,7 +3486,10 @@ export const ChatPage = () => {
     ],
   );
 
-  const handleSubmit = async (message: { text: string }) => {
+  const handleSubmit = async (
+    message: { text: string },
+    submitOptions?: { newSession?: boolean },
+  ) => {
     if ((!message.text.trim() && attachments.length === 0) || isChatBusy)
       return;
 
@@ -3525,7 +3528,11 @@ export const ChatPage = () => {
       coach: "You are a career coach who gives actionable advice.",
     }[persona];
 
-    const sessionId = activeSessionId || (await createSession(true));
+    // Tasks launched from other pages start their own chat instead of
+    // landing in whatever conversation was open last.
+    const sessionId = submitOptions?.newSession
+      ? await createSession(true)
+      : activeSessionId || (await createSession(true));
     if (!sessionId) {
       toastError("Could not start chat", "Please try again.");
       return;
@@ -3688,7 +3695,7 @@ export const ChatPage = () => {
     autoInvokeFiredRef.current = true;
     // Clear the navigation state so a refresh or back-nav doesn't re-fire it.
     navigate(location.pathname, { replace: true, state: null });
-    void handleSubmitRef.current({ text: autoPrompt });
+    void handleSubmitRef.current({ text: autoPrompt }, { newSession: true });
   }, [
     location.state,
     location.pathname,

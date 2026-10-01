@@ -108,6 +108,8 @@ import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { TailorResumeModal } from "../components/jobs/TailorResumeModal";
+import { AskAiMenu } from "@/components/chat/AskAiMenu";
+import { jobChatActions } from "@/lib/chat/chatActions";
 import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
 import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
@@ -6541,6 +6543,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                       <Sparkles className='w-4 h-4' />
                                       Tailor Resume to JD
                                     </Button>
+                                    <AskAiMenu
+                                      actions={jobChatActions(job)}
+                                      className='flex-1 basis-[10rem] text-sm'
+                                    />
                                     {primaryHref && (
                                       <a
                                         href={primaryHref}
@@ -8456,6 +8462,7 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                             <Sparkles className='w-3.5 h-3.5' />
                             Tailor Resume
                           </Button>
+                          <AskAiMenu actions={jobChatActions(j)} />
                           {primaryHref && (
                             <a
                               href={primaryHref}
