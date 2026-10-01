@@ -503,7 +503,12 @@ export const BillingPage = () => {
   const [activeTab, setActiveTab] = useState<
     "subscription" | "packs" | "boosts" | "costs" | "history"
   >("subscription");
-  const [processingPayment, setProcessingPayment] = useState(false);
+  // Which item is being paid for ("type:name"); every buy button is disabled
+  // while one payment starts, but only that item's button shows a spinner.
+  const [processingPaymentKey, setProcessingPaymentKey] = useState<string | null>(null);
+  const processingPayment = processingPaymentKey !== null;
+  const paymentKey = (type: string, item: any) => `${type}:${item?.name ?? item?.sku ?? item?.id ?? ""}`;
+  const isPaying = (type: string, item: any) => processingPaymentKey === paymentKey(type, item);
   const [activeAutoApplyRuns, setActiveAutoApplyRuns] = useState(0);
   const [boostedConcurrencySlots, setBoostedConcurrencySlots] = useState(0);
   const [selectedConcurrencyPackSku, setSelectedConcurrencyPackSku] = useState<
@@ -1008,7 +1013,7 @@ export const BillingPage = () => {
     item: any,
   ) => {
     try {
-      setProcessingPayment(true);
+      setProcessingPaymentKey(paymentKey(type, item));
 
       const {
         data: { session },
@@ -1121,7 +1126,7 @@ export const BillingPage = () => {
           : "Failed to initialize payment. Please try again.";
       toastError("Payment Error", message);
     } finally {
-      setProcessingPayment(false);
+      setProcessingPaymentKey(null);
     }
   };
 
@@ -2081,7 +2086,7 @@ export const BillingPage = () => {
                                   }
                                 >
                                   <span className='flex w-full items-center justify-center gap-2'>
-                                    {processingPayment && !isCurrentPlan ? (
+                                    {isPaying("subscription", plan) && !isCurrentPlan ? (
                                       <Loader2
                                         className='h-4 w-4 shrink-0 animate-spin'
                                         aria-hidden
@@ -2090,7 +2095,7 @@ export const BillingPage = () => {
                                     <span className='min-w-0 text-center uppercase leading-snug [overflow-wrap:anywhere]'>
                                       {ctaLabel}
                                     </span>
-                                    {!isCurrentPlan && !processingPayment ? (
+                                    {!isCurrentPlan && !isPaying("subscription", plan) ? (
                                       <ArrowRight
                                         className='h-4 w-4 shrink-0'
                                         strokeWidth={2.5}
@@ -2316,7 +2321,7 @@ export const BillingPage = () => {
                           )
                         }
                       >
-                        {processingPayment ? (
+                        {isPaying("concurrency_pack", selectedConcurrencyPack) ? (
                           <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                         ) : null}
                         Buy for ${selectedConcurrencyPack.price_usd}
@@ -2455,7 +2460,7 @@ export const BillingPage = () => {
                             disabled={processingPayment}
                             onClick={() => handlePayment("credit_pack", pack)}
                           >
-                            {processingPayment ? (
+                            {isPaying("credit_pack", pack) ? (
                               <Loader2 className='w-4 h-4 animate-spin mr-2' />
                             ) : null}
                             PURCHASE
