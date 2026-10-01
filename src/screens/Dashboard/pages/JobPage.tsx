@@ -3708,6 +3708,23 @@ export const JobPage = (): JSX.Element => {
       // the user to confirm the list before anything is submitted.
       if (!saveAsDraftOnly && !jobToAutoApply && targetJobs.length > 1) {
         if (!confirmedJobIds) {
+          // The fit rule needs a match score; page loads only score 50 jobs at
+          // a time, so score the rest of the targets first (saved afterwards by
+          // the match insights persistence effect, so each job is scored once).
+          const unscored = targetJobs.filter((job) => typeof job.matchScore !== "number");
+          if (hasMatchScoreAccess && unscored.length) {
+            safeInfo("Checking job fit", `Scoring ${Math.min(unscored.length, 200)} jobs before launch...`);
+            const scored = new Map<string, Job>();
+            for (let i = 0; i < unscored.length && i < 200; i += 50) {
+              const batch = await fetchJobMatchInsights(unscored.slice(i, i + 50), matchContext, true).catch(() => []);
+              for (const job of batch) if (typeof job.matchScore === "number") scored.set(job.id, job);
+            }
+            if (scored.size) {
+              targetJobs = targetJobs.map((job) => scored.get(job.id) ?? job);
+              setJobs((prev) => prev.map((job) => scored.get(job.id) ?? job));
+            }
+          }
+
           const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const { data: recent } = await (supabase as any)
             .from("applications")
@@ -4576,6 +4593,8 @@ export const JobPage = (): JSX.Element => {
       workableFrom,
       profile?.location,
       profileAnswers,
+      hasMatchScoreAccess,
+      matchContext,
     ],
   );
 
