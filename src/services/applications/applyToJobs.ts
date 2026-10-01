@@ -38,6 +38,8 @@ export type ApplyToJobsParams = {
   evaluation_confidence?: number | null;
   hard_blockers_count?: number | null;
   save_as_draft_only?: boolean;
+  /** Answers typed before launch for questions specific to this job. */
+  user_input?: { custom_answers?: Array<{ question: string; answer: string }> };
   email?: string;
   job_id?: string | null;
   job_title?: string | null;

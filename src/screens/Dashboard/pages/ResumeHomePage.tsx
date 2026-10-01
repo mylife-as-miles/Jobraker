@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ResumeAreaTabs } from "@/components/ResumeAreaTabs";
 import {
   Plus,
   Upload,
@@ -178,6 +179,10 @@ export const ResumeHomePage = () => {
         accept='.pdf'
         className='hidden'
       />
+
+      <div className='mb-6'>
+        <ResumeAreaTabs />
+      </div>
 
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>

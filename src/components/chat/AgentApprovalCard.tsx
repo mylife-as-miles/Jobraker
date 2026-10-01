@@ -17,7 +17,6 @@ import type {
 type Props = {
   request: AgentApprovalRequest;
   onApprove: (request: AgentApprovalRequest) => void;
-  onAdjust: (request: AgentApprovalRequest) => void;
   onDecline: (request: AgentApprovalRequest) => void;
   disabled?: boolean;
 };
@@ -40,19 +39,33 @@ const stepIcon = (step: AgentApprovalStep) => {
 export const AgentApprovalCard = ({
   request,
   onApprove,
-  onAdjust,
   onDecline,
   disabled = false,
 }: Props) => {
   const [localDecision, setLocalDecision] = useState<"pending" | "approved" | "declined">("pending");
   const [showAll, setShowAll] = useState(false);
+  const [excludedKeys, setExcludedKeys] = useState<Set<string>>(() => new Set());
+  const canPickSteps = request.steps.length > 1;
+  const selectedSteps = request.steps.filter((step) => !excludedKeys.has(step.approvalKey));
+  const toggleStep = (key: string) =>
+    setExcludedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const decision = request.decision || localDecision;
   const visibleSteps = showAll ? request.steps : request.steps.slice(0, 3);
   const extraSteps = request.steps.length - visibleSteps.length;
 
   const approve = () => {
+    if (selectedSteps.length === 0) return;
     setLocalDecision("approved");
-    onApprove(request);
+    onApprove(
+      selectedSteps.length === request.steps.length
+        ? request
+        : { ...request, steps: selectedSteps },
+    );
   };
 
   const decline = () => {
@@ -101,16 +114,28 @@ export const AgentApprovalCard = ({
 
       <div className="px-4 py-3">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Proposed steps
+          {canPickSteps ? "Untick anything you want to skip" : "Proposed step"}
         </p>
         <ol className="space-y-1.5">
           {visibleSteps.map((step, index) => {
             const Icon = stepIcon(step);
+            const included = !excludedKeys.has(step.approvalKey);
             return (
-              <li key={step.approvalKey} className="flex items-start gap-2.5 rounded-lg bg-background/50 px-2.5 py-2">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-brand/[0.1] text-[10px] font-semibold text-brand">
-                  {index + 1}
-                </span>
+              <li key={step.approvalKey} className={`flex items-start gap-2.5 rounded-lg bg-background/50 px-2.5 py-2 ${included ? "" : "opacity-50"}`}>
+                {canPickSteps ? (
+                  <input
+                    type="checkbox"
+                    checked={included}
+                    disabled={disabled}
+                    onChange={() => toggleStep(step.approvalKey)}
+                    aria-label={`Include step ${index + 1}: ${step.title}`}
+                    className="mt-1 size-4 shrink-0 cursor-pointer accent-[hsl(var(--brand))]"
+                  />
+                ) : (
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-brand/[0.1] text-[10px] font-semibold text-brand">
+                    {index + 1}
+                  </span>
+                )}
                 <Icon className="mt-1 size-3.5 shrink-0 text-brand" />
                 <span className="min-w-0 text-xs leading-5 text-muted-foreground">
                   <span className="font-medium text-foreground">{step.title}</span>
@@ -144,19 +169,15 @@ export const AgentApprovalCard = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => onAdjust(request)}
-            disabled={disabled}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-brand/45 hover:bg-brand/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
-          >
-            Adjust plan
-          </button>
-          <button
-            type="button"
             onClick={approve}
-            disabled={disabled}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-background shadow-[0_8px_18px_rgba(47,217,104,0.18)] transition-transform hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            disabled={disabled || selectedSteps.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand disabled:opacity-50 px-3 py-2 text-xs font-semibold text-background shadow-[0_8px_18px_rgba(47,217,104,0.18)] transition-transform hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           >
-            Approve {request.steps.length === 1 ? "step" : "plan"}
+            {!canPickSteps
+              ? "Approve"
+              : selectedSteps.length === request.steps.length
+                ? `Approve all ${request.steps.length}`
+                : `Approve ${selectedSteps.length} of ${request.steps.length}`}
             <ArrowUp className="size-3.5" />
           </button>
         </div>

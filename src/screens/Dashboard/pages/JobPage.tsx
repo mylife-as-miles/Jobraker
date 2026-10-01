@@ -72,13 +72,14 @@ import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import {
   fetchWorkEligibility,
-  isWorkEligibilityComplete,
   type WorkEligibility,
 } from "../../../services/profile/workEligibility";
-import { WorkEligibilityDialog } from "../../../components/WorkEligibilityDialog";
+import { ProfileRequiredDialog } from "../../../components/ProfileRequiredDialog";
+import { loadApplicationProfile, missingRequiredKeys, saveApplicationProfile } from "../../../services/profile/applicationProfile";
+import { withLegacyAnswers, type ProfileAnswers } from "../../../../backend/supabase/shared/application-profile";
 import { AutoApplyDecisionPrompt } from "../../../components/AutoApplyDecisionPrompt";
 import { getAutoApplyReadiness, WORKABLE_FROM_OPTIONS } from "../../../lib/atsReadiness";
-import { companyKey, countryFromText, planBulkApply, type BulkPlan } from "../../../lib/bulkApplyPlan";
+import { companyKey, countryFromText, planBulkApply, type BulkJobInput } from "../../../lib/bulkApplyPlan";
 import { BulkApplyConfirmDialog } from "../../../components/BulkApplyConfirmDialog";
 
 const WORKABLE_FROM_STORAGE_KEY = "jobraker.jobs.workableFrom";
@@ -107,6 +108,8 @@ import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { TailorResumeModal } from "../components/jobs/TailorResumeModal";
+import { AskAiMenu } from "@/components/chat/AskAiMenu";
+import { jobChatActions } from "@/lib/chat/chatActions";
 import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
 import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
@@ -1332,15 +1335,50 @@ export const JobPage = (): JSX.Element => {
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
-  const [workEligibilityDialogOpen, setWorkEligibilityDialogOpen] = useState(false);
-  const [workEligibility, setWorkEligibility] = useState<WorkEligibility | null>(null);
-  const [bulkPlan, setBulkPlan] = useState<BulkPlan | null>(null);
+  const [profileRequiredMissing, setProfileRequiredMissing] = useState<string[]>([]);
+  const [profileAnswers, setProfileAnswers] = useState<ProfileAnswers | null>(null);
+  // Bulk plan inputs; the plan itself is recomputed as the user answers
+  // questions in the confirmation dialog.
+  const [bulkPlanInputs, setBulkPlanInputs] = useState<{
+    jobs: BulkJobInput[];
+    country: string | null;
+    recentByCompany: Record<string, number>;
+  } | null>(null);
+  // Answers to job-specific questions typed before launch: jobId -> label -> answer.
+  const [bulkCustomAnswers, setBulkCustomAnswers] = useState<Record<string, Record<string, string>>>({});
+  const bulkCustomAnswersRef = useRef(bulkCustomAnswers);
+  bulkCustomAnswersRef.current = bulkCustomAnswers;
+  const bulkPlan = useMemo(
+    () => (bulkPlanInputs
+      ? planBulkApply(bulkPlanInputs.jobs, {
+        country: bulkPlanInputs.country,
+        recentByCompany: bulkPlanInputs.recentByCompany,
+        answers: profileAnswers,
+        customAnswers: bulkCustomAnswers,
+      })
+      : null),
+    [bulkPlanInputs, profileAnswers, bulkCustomAnswers],
+  );
+  const saveProfileFromBulk = useCallback(async (patchIn: ProfileAnswers) => {
+    // Merge list/object answers so saving one permission or employer keeps the rest.
+    const patchOut: ProfileAnswers = { ...patchIn };
+    if (patchIn.permissions) patchOut.permissions = { ...(profileAnswers?.permissions ?? {}), ...patchIn.permissions };
+    if (patchIn.past_employers) {
+      patchOut.past_employers = {
+        items: [...new Set([...(profileAnswers?.past_employers?.items ?? []), ...(patchIn.past_employers.items ?? [])])],
+      };
+    }
+    await saveApplicationProfile(patchOut);
+    setProfileAnswers((prev) => ({ ...(prev ?? {}), ...patchOut }));
+  }, [profileAnswers]);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   // Loaded up front so job cards can show auto-apply readiness.
   useEffect(() => {
     let cancelled = false;
-    fetchWorkEligibility()
-      .then((value) => { if (!cancelled && value) setWorkEligibility(value); })
+    Promise.all([loadApplicationProfile(), fetchWorkEligibility().catch(() => null)])
+      .then(([saved, legacy]) => {
+        if (!cancelled) setProfileAnswers(withLegacyAnswers(saved ?? {}, (legacy as WorkEligibility | null) ?? null));
+      })
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
@@ -3617,15 +3655,17 @@ export const JobPage = (): JSX.Element => {
         return;
       }
 
-      // Autopilot can only submit when the critical eligibility answers are
-      // saved; otherwise the backend downgrades every run to a draft. Ask once.
-      // A null result means the answers could not be read: do not block.
+      // Autopilot needs the required application profile answers; otherwise
+      // runs stop to ask or are downgraded to drafts. null = could not be
+      // read: do not block.
       if (!saveAsDraftOnly && autoSubmitApplications) {
-        const eligibility = await fetchWorkEligibility().catch(() => null);
-        if (eligibility && !isWorkEligibilityComplete(eligibility)) {
-          setWorkEligibility(eligibility);
-          setWorkEligibilityDialogOpen(true);
-          return;
+        const saved = await loadApplicationProfile().catch(() => null);
+        if (saved) {
+          const missing = missingRequiredKeys(saved);
+          if (missing.length) {
+            setProfileRequiredMissing(missing);
+            return;
+          }
         }
       }
 
@@ -3670,6 +3710,23 @@ export const JobPage = (): JSX.Element => {
       // the user to confirm the list before anything is submitted.
       if (!saveAsDraftOnly && !jobToAutoApply && targetJobs.length > 1) {
         if (!confirmedJobIds) {
+          // The fit rule needs a match score; page loads only score 50 jobs at
+          // a time, so score the rest of the targets first (saved afterwards by
+          // the match insights persistence effect, so each job is scored once).
+          const unscored = targetJobs.filter((job) => typeof job.matchScore !== "number");
+          if (hasMatchScoreAccess && unscored.length) {
+            safeInfo("Checking job fit", `Scoring ${Math.min(unscored.length, 200)} jobs before launch...`);
+            const scored = new Map<string, Job>();
+            for (let i = 0; i < unscored.length && i < 200; i += 50) {
+              const batch = await fetchJobMatchInsights(unscored.slice(i, i + 50), matchContext, true).catch(() => []);
+              for (const job of batch) if (typeof job.matchScore === "number") scored.set(job.id, job);
+            }
+            if (scored.size) {
+              targetJobs = targetJobs.map((job) => scored.get(job.id) ?? job);
+              setJobs((prev) => prev.map((job) => scored.get(job.id) ?? job));
+            }
+          }
+
           const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const { data: recent } = await (supabase as any)
             .from("applications")
@@ -3682,8 +3739,9 @@ export const JobPage = (): JSX.Element => {
             if (key) recentByCompany[key] = (recentByCompany[key] ?? 0) + 1;
           }
           const country = workableFrom === "ANY" ? null : workableFrom || countryFromText(profile?.location);
-          setBulkPlan(planBulkApply(
-            targetJobs.map((job) => ({
+          setBulkCustomAnswers({});
+          setBulkPlanInputs({
+            jobs: targetJobs.map((job) => ({
               id: job.id,
               title: job.title,
               company: job.company,
@@ -3691,13 +3749,15 @@ export const JobPage = (): JSX.Element => {
               matchScore: job.matchScore ?? null,
               raw_data: job.raw_data,
             })),
-            { country, recentByCompany },
-          ));
+            country,
+            recentByCompany,
+          });
           setBulkConfirmOpen(true);
           return;
         }
-        const allowed = new Set(confirmedJobIds);
-        targetJobs = targetJobs.filter((job) => allowed.has(job.id));
+        // Submit in the confirmed order: ready jobs first, jobs that will ask last.
+        const byId = new Map(targetJobs.map((job) => [job.id, job]));
+        targetJobs = confirmedJobIds.map((id) => byId.get(id)).filter((job): job is Job => Boolean(job));
         if (!targetJobs.length) return;
       }
       if (saveAsDraftOnly) {
@@ -4332,6 +4392,13 @@ export const JobPage = (): JSX.Element => {
                       : {}),
                 ...(selectedResume?.data ? { resume_data: selectedResume.data } : {}),
                 ...(userEmail ? { email: userEmail } : {}),
+                // Answers typed in the bulk dialog for questions specific to this job.
+                ...(() => {
+                  const custom = Object.entries(bulkCustomAnswersRef.current[job.id] ?? {})
+                    .filter(([, answer]) => answer.trim())
+                    .map(([question, answer]) => ({ question, answer: answer.trim() }));
+                  return custom.length ? { user_input: { custom_answers: custom } } : {};
+                })(),
               };
 
               let automationResult:
@@ -4527,6 +4594,9 @@ export const JobPage = (): JSX.Element => {
       fetchConcurrencyInfo,
       workableFrom,
       profile?.location,
+      profileAnswers,
+      hasMatchScoreAccess,
+      matchContext,
     ],
   );
 
@@ -5959,7 +6029,11 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                               )}
                             {(() => {
                               // Auto-apply readiness from the job application questions.
-                              const readiness = getAutoApplyReadiness(job.raw_data, workEligibility);
+                              const readiness = getAutoApplyReadiness(
+                                job,
+                                profileAnswers,
+                                profileAnswers?.country_residence?.country ?? countryFromText(profile?.location),
+                              );
                               if (readiness.state === "unknown") return null;
                               if (readiness.state === "ready") {
                                 return (
@@ -5970,10 +6044,15 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                 );
                               }
                               return (
-                                <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20' title={`Answer before auto-apply: ${readiness.missing.join(", ")}`}>
+                                <button
+                                  type='button'
+                                  onClick={(e) => { e.stopPropagation(); navigate("/dashboard/resume/profile"); }}
+                                  className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                                  title={`Add to your application profile: ${readiness.missing.join(", ")}`}
+                                >
                                   <AlertTriangle className='w-3 h-3' />
                                   Needs {readiness.missing.length} {readiness.missing.length === 1 ? "answer" : "answers"}
-                                </span>
+                                </button>
                               );
                             })()}
                             {job.status && (
@@ -6464,6 +6543,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                                       <Sparkles className='w-4 h-4' />
                                       Tailor Resume to JD
                                     </Button>
+                                    <AskAiMenu
+                                      actions={jobChatActions(job)}
+                                      className='flex-1 basis-[10rem] text-sm'
+                                    />
                                     {primaryHref && (
                                       <a
                                         href={primaryHref}
@@ -8379,6 +8462,7 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
                             <Sparkles className='w-3.5 h-3.5' />
                             Tailor Resume
                           </Button>
+                          <AskAiMenu actions={jobChatActions(j)} />
                           {primaryHref && (
                             <a
                               href={primaryHref}
@@ -8604,6 +8688,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
         open={bulkConfirmOpen}
         onOpenChange={setBulkConfirmOpen}
         plan={bulkPlan}
+        onSaveProfile={saveProfileFromBulk}
+        customAnswers={bulkCustomAnswers}
+        onCustomAnswerChange={(jobId, label, answer) =>
+          setBulkCustomAnswers((prev) => ({ ...prev, [jobId]: { ...(prev[jobId] ?? {}), [label]: answer } }))}
         onConfirm={(jobIds) => {
           setBulkConfirmOpen(false);
           void applyAllJobs(false, jobIds);
@@ -8634,15 +8722,10 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
           setAiEvaluation(null);
         }}
       />
-      <WorkEligibilityDialog
-        open={workEligibilityDialogOpen}
-        onOpenChange={setWorkEligibilityDialogOpen}
-        initialValue={workEligibility}
-        description='Autopilot needs these answers to submit applications for you. You only answer once, and can change them later in Settings.'
-        onSaved={(saved) => {
-          setWorkEligibility(saved);
-          void applyAllJobs(false);
-        }}
+      <ProfileRequiredDialog
+        open={profileRequiredMissing.length > 0}
+        onOpenChange={(open) => { if (!open) setProfileRequiredMissing([]); }}
+        missing={profileRequiredMissing}
       />
       <ConcurrencyLimitModal
         open={concurrencyModalOpen}

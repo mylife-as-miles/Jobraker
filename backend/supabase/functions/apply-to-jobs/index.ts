@@ -15,6 +15,15 @@ import {
 } from "../_shared/feature-limits.ts";
 import { validateSubmissionPolicy } from "../../shared/auto-apply-policy.ts";
 import {
+  ACCOUNT_KEYS,
+  PROFILE_QUESTION_LABELS,
+  profileAnswerCategory,
+  resolveProfileAnswer,
+  withLegacyAnswers,
+  type JobFacts,
+} from "../../shared/application-profile.ts";
+import { detectCountries } from "../../shared/ats/location.ts";
+import {
   type ApplicationPackage,
   type ApplicationAnswer,
   type ApplicationRequirement,
@@ -593,6 +602,37 @@ Deno.serve(async (req) => {
       typeof eligibilityRow?.desired_salary === "string" && eligibilityRow.desired_salary.trim()
         ? eligibilityRow.desired_salary.trim()
         : null;
+
+    // Application profile (Phase 3), resolved for this job. The legacy columns
+    // above stay as fallbacks; a missing table or no rows means an empty profile.
+    const { data: profileAnswerRows } = await serviceClient
+      .from("application_profile_answers")
+      .select("key, value")
+      .eq("user_id", userId);
+    const profileAnswers = withLegacyAnswers(
+      Object.fromEntries((profileAnswerRows ?? []).map((row: any) => [row.key, row.value])),
+      eligibilityRow ?? null,
+    );
+    let jobAts: any = null;
+    if (jobContext.job_id) {
+      const { data: jobRow } = await serviceClient
+        .from("jobs")
+        .select("raw_data")
+        .eq("id", jobContext.job_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      jobAts = jobRow?.raw_data?.ats ?? null;
+    }
+    const jobFacts: JobFacts = {
+      company: jobContext.company ?? null,
+      countries: Array.isArray(jobAts?.countries) ? jobAts.countries : [],
+      remoteScope: typeof jobAts?.remote_scope === "string" ? jobAts.remote_scope : null,
+      residenceCountry: detectCountries(typeof profileRow?.location === "string" ? profileRow.location : null)[0] ?? null,
+    };
+    const resolvedBool = (key: string): boolean | null => {
+      const resolved = resolveProfileAnswer(key, profileAnswers, jobFacts);
+      return resolved && typeof resolved.value === "boolean" ? resolved.value : null;
+    };
 
     const [
       { data: experienceRows },
@@ -1213,7 +1253,7 @@ Deno.serve(async (req) => {
     const requestWorkAuthVal =
       userInput?.work_authorization?.authorized ??
       (typeof userInput?.authorized_to_work === "boolean" ? userInput.authorized_to_work : null);
-    const workAuthVal = requestWorkAuthVal ?? profileWorkAuthorized;
+    const workAuthVal = requestWorkAuthVal ?? resolvedBool("work_authorization") ?? profileWorkAuthorized;
     eligibilityAnswers.push({
       questionKey: "work_authorization",
       questionText: "Are you legally authorized to work in this job's jurisdiction?",
@@ -1232,7 +1272,7 @@ Deno.serve(async (req) => {
       userInput?.visa_sponsorship ??
       userInput?.requires_sponsorship ??
       null;
-    const sponsorshipVal = requestSponsorshipVal ?? profileRequiresSponsorship;
+    const sponsorshipVal = requestSponsorshipVal ?? resolvedBool("sponsorship") ?? profileRequiresSponsorship;
     eligibilityAnswers.push({
       questionKey: "visa_sponsorship",
       questionText: "Will you now or in the future require visa sponsorship?",
@@ -1249,7 +1289,9 @@ Deno.serve(async (req) => {
     // 3. Desired compensation / salary
     // The user's own answer comes first; the job's posted salary stays as the
     // last fallback so users without a saved answer behave as before.
-    const salaryVal = userInput?.desired_salary || profileDesiredSalary || jobContext.salary || null;
+    const salaryVal = userInput?.desired_salary
+      || resolveProfileAnswer("expected_salary", profileAnswers, jobFacts)?.display
+      || profileDesiredSalary || jobContext.salary || null;
     eligibilityAnswers.push({
       questionKey: "desired_salary",
       questionText: "What is your target or minimum salary compensation requirement?",
@@ -1264,7 +1306,7 @@ Deno.serve(async (req) => {
     });
 
     // 4. Security clearance
-    const clearanceVal = userInput?.security_clearance ?? profileHasClearance;
+    const clearanceVal = userInput?.security_clearance ?? resolvedBool("security_clearance") ?? profileHasClearance;
     eligibilityAnswers.push({
       questionKey: "security_clearance",
       questionText: "Do you hold an active government or defense security clearance?",
@@ -1279,7 +1321,7 @@ Deno.serve(async (req) => {
     });
 
     // 5. Relocation
-    const relocationVal = userInput?.willing_to_relocate ?? profileWillingToRelocate;
+    const relocationVal = userInput?.willing_to_relocate ?? resolvedBool("relocation") ?? profileWillingToRelocate;
     eligibilityAnswers.push({
       questionKey: "relocation",
       questionText: "Are you willing to relocate for this role if required?",
@@ -1312,6 +1354,51 @@ Deno.serve(async (req) => {
           });
         }
       }
+    }
+
+    // 6b. Answers the user typed before launch for questions specific to this job.
+    const customAnswers: any[] = Array.isArray(userInput?.custom_answers) ? userInput.custom_answers : [];
+    for (const item of customAnswers.slice(0, 20)) {
+      const question = typeof item?.question === "string" ? item.question.trim().slice(0, 500) : "";
+      const answer = typeof item?.answer === "string" ? item.answer.trim().slice(0, 2000) : "";
+      if (!question || !answer) continue;
+      screeningAnswers.push({
+        questionText: question,
+        value: answer,
+        category: "general",
+        provenance: { source: "user_answer" },
+        confidence: 1,
+        mutable: false,
+        requiresUserInput: false,
+      });
+    }
+
+    // 7. Application profile answers. Jobs with known questions get an answer
+    // per exact question label; other jobs get the profile's answers under
+    // generic wording so the agent can use them if the form asks.
+    const knownQuestions: any[] = Array.isArray(jobAts?.questions) ? jobAts.questions : [];
+    const pushProfileAnswer = (key: string, label: string) => {
+      const resolved = resolveProfileAnswer(key, profileAnswers, jobFacts);
+      if (!resolved) return;
+      screeningAnswers.push({
+        questionKey: key,
+        questionText: label,
+        value: resolved.display,
+        category: profileAnswerCategory(key) as any,
+        provenance: { source: "candidate_profile" },
+        confidence: 1,
+        mutable: false,
+        requiresUserInput: false,
+      });
+    };
+    if (knownQuestions.length) {
+      for (const q of knownQuestions) {
+        if (typeof q?.key === "string" && typeof q?.label === "string" && !ACCOUNT_KEYS.has(q.key)) {
+          pushProfileAnswer(q.key, q.label);
+        }
+      }
+    } else {
+      for (const [key, label] of Object.entries(PROFILE_QUESTION_LABELS)) pushProfileAnswer(key, label);
     }
 
     if (authoritativeHardBlockers && authoritativeHardBlockers > 0) {

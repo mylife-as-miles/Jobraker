@@ -34,6 +34,27 @@ async function recoverStaleRtrvrRows(serviceClient: any) {
     if (heartbeat > Date.now() - 10 * 60_000) continue;
 
     const retryCount = Number(row.retry_count || 0);
+    // A run that reached the provider may already have submitted the form;
+    // retrying it could send the employer a second application. Stop and ask
+    // the user to check instead.
+    if (row.provider_status === "rtrvr_running") {
+      await serviceClient
+        .from("applications")
+        .update({
+          status: "Draft",
+          canonical_stage: "draft_ready",
+          provider_status: "failed",
+          automation_claimed_by: null,
+          automation_lease_token: null,
+          automation_lease_expires_at: null,
+          failure_reason:
+            "Result unknown: the run lost contact after it started. Check the employer's site or your email for a confirmation before applying again.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+      recovered += 1;
+      continue;
+    }
     if (retryCount >= 2) {
       await serviceClient
         .from("applications")

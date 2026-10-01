@@ -1,6 +1,8 @@
 import SortDropdown from "@/components/SortDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { AskAiMenu } from "@/components/chat/AskAiMenu";
+import { applicationChatActions } from "@/lib/chat/chatActions";
 import { motion } from "framer-motion";
 import {
   useApplications,
@@ -3011,6 +3013,10 @@ function ApplicationPage() {
                 <Trash2 className='mr-2 h-4 w-4' />
                 Delete
               </Button>
+              <AskAiMenu
+                actions={applicationChatActions(detailApp)}
+                className='min-h-8'
+              />
               <Button
                 size='sm'
                 variant='outline'
