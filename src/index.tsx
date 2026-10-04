@@ -1,3 +1,4 @@
+// App entry point (deploy trigger after the repository was made public again).
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "../tailwind.css";
