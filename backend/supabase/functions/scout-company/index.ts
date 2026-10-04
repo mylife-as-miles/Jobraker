@@ -623,6 +623,149 @@ async function searchContactProvider(
   }
 }
 
+// Hunter.io (https://hunter.io/api-documentation/v2): lists the people at a
+// company domain by department, finds a named person's work email, and
+// verifies addresses. Used when HUNTER_API_KEY is set. Only addresses Hunter
+// reports as "valid" are treated as verified; catch-all domains never are.
+const HUNTER_API = "https://api.hunter.io/v2";
+const HUNTER_PROVIDER = "https://hunter.io";
+const HUNTER_MAX_VERIFICATIONS = 3;
+const RECRUITING_INBOX = /^(?:jobs?|careers?|recruit(?:ing|ment|er)?|talent|hiring|hr|people)(?:[._+-].*)?@/i;
+
+const hunterKey = () => asString(Deno.env.get("HUNTER_API_KEY"));
+
+async function hunterGet(path: string, params: Record<string, string>): Promise<any> {
+  const key = hunterKey();
+  if (!key) return null;
+  const url = new URL(`${HUNTER_API}/${path}`);
+  for (const [name, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(name, value);
+  }
+  url.searchParams.set("api_key", key);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("hunter_timeout"), 20_000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      console.warn("hunter request failed", { path, status: response.status });
+      return null;
+    }
+    const json = await response.json().catch(() => null);
+    return json?.data ?? null;
+  } catch (error) {
+    console.warn("hunter request failed", {
+      path,
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function hunterVerifyStatus(email: string): Promise<string> {
+  const data = await hunterGet("email-verifier", { email });
+  return asString(data?.status).toLowerCase();
+}
+
+interface HunterDiscovery {
+  domain: string;
+  contacts: RecruiterContact[];
+  genericInbox: { email: string; sourceUrl: string } | null;
+}
+
+async function searchHunter(
+  company: string,
+  officialDomain: string,
+  jobTitle: string,
+  teamKeywords: string[],
+  limit: number,
+): Promise<HunterDiscovery> {
+  const empty: HunterDiscovery = { domain: officialDomain, contacts: [], genericInbox: null };
+  if (!hunterKey()) return empty;
+  // Without a known domain Hunter resolves the company name itself.
+  const target: Record<string, string> = officialDomain ? { domain: officialDomain } : { company };
+  const [recruiting, management] = await Promise.all([
+    hunterGet("domain-search", { ...target, department: "hr", limit: "10" }),
+    hunterGet("domain-search", { ...target, department: "management", limit: "10" }),
+  ]);
+  const domain = officialDomain || asString(recruiting?.domain) || asString(management?.domain);
+  if (!domain) return empty;
+
+  let genericInbox: HunterDiscovery["genericInbox"] = null;
+  const people: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  for (const row of [...(recruiting?.emails || []), ...(management?.emails || [])]) {
+    const email = asString(row?.value).toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    const status = asString(row?.verification?.status).toLowerCase();
+    const sourceUrl = asString(row?.sources?.[0]?.uri) || `${HUNTER_PROVIDER}/domain-search/${domain}`;
+    if (row?.type === "generic") {
+      if (!genericInbox && RECRUITING_INBOX.test(email) && status !== "invalid") {
+        genericInbox = { email, sourceUrl };
+      }
+      continue;
+    }
+    const fullName = [asString(row?.first_name), asString(row?.last_name)].filter(Boolean).join(" ");
+    const title = asString(row?.position) ||
+      (row?.department === "hr" ? "Talent Acquisition" : "");
+    if (!fullName || !title) continue;
+    people.push({
+      email,
+      full_name: fullName,
+      title,
+      status,
+      confidence: Number(row?.confidence) || 0,
+      linkedin_url: asString(row?.linkedin),
+    });
+  }
+
+  // Domain search often returns addresses Hunter has not verified yet. Verify
+  // the most likely few rather than every row, since each check costs a credit.
+  let verifications = 0;
+  for (const person of people.sort((a, b) => Number(b.confidence) - Number(a.confidence))) {
+    if (person.status === "valid" || verifications >= HUNTER_MAX_VERIFICATIONS) continue;
+    verifications += 1;
+    person.status = await hunterVerifyStatus(String(person.email));
+  }
+
+  const contacts = normalizeContactProviderContacts({ contacts: people }, {
+    company,
+    officialDomain: domain,
+    jobTitle,
+    teamKeywords,
+    providerUrl: HUNTER_PROVIDER,
+  }) as RecruiterContact[];
+  return { domain, contacts: contacts.slice(0, limit), genericInbox };
+}
+
+/** Hunter Email Finder for a named contact (e.g. found on LinkedIn). */
+async function findEmailWithHunter(
+  contact: RecruiterContact,
+  officialDomain: string,
+): Promise<RecruiterContact | null> {
+  const data = await hunterGet("email-finder", {
+    domain: officialDomain,
+    full_name: contact.fullName,
+  });
+  const email = asString(data?.email).toLowerCase();
+  if (!email || !domainsCompatible(email.split("@")[1] || "", officialDomain)) return null;
+  let status = asString(data?.verification?.status).toLowerCase();
+  if (status !== "valid") status = await hunterVerifyStatus(email);
+  if (status !== "valid") return null;
+  const score = Number(data?.score);
+  return {
+    ...contact,
+    workEmail: email,
+    emailStatus: "provider_verified",
+    emailConfidence: Number.isFinite(score) && score > 0 ? Math.min(0.99, Math.max(0.5, score / 100)) : 0.9,
+    emailSourceUrl: HUNTER_PROVIDER,
+    safeToContact: true,
+    evidence: [...contact.evidence, { type: "provider_verified_finder", provider: HUNTER_PROVIDER }],
+  };
+}
+
 async function enrichEmail(
   contact: RecruiterContact,
   officialDomain: string,
@@ -656,6 +799,10 @@ async function enrichEmail(
     }
   } catch {
     // Continue to an optional verifier. Never create a user-visible guess.
+  }
+  if (hunterKey()) {
+    return await findEmailWithHunter(contact, officialDomain) ||
+      { ...contact, workEmail: "", emailStatus: "not_found", emailConfidence: 0, emailSourceUrl: "", safeToContact: false };
   }
   for (const candidate of emailPatterns(contact.fullName, officialDomain)) {
     const result = await verifyEmail(candidate, contact.fullName, company);
@@ -929,6 +1076,7 @@ serve(async (req) => {
       publicPeopleItems,
       publicEmailItems,
       providerContacts,
+      hunter,
     ] = await Promise.all([
       searchForRun(searchPlan.linkedInRecruiters, 8),
       searchForRun(searchPlan.linkedInManagers, 8),
@@ -936,7 +1084,10 @@ serve(async (req) => {
       searchForRun(searchPlan.publicPeople, 6),
       searchForRun(searchPlan.publicEmails, 6, true),
       searchContactProvider(job.company, officialDomain, job.title, teamKeywords, 8),
+      searchHunter(job.company, officialDomain, job.title, teamKeywords, 8),
     ]);
+    // Hunter can resolve the domain when the web search could not.
+    if (!officialDomain && hunter.domain) officialDomain = hunter.domain;
     const publicItems = dedupeSearchItems([
       ...officialItems,
       ...ycItems,
@@ -971,6 +1122,7 @@ serve(async (req) => {
       addContact(contact);
     }
     for (const contact of providerContacts) addContact(contact);
+    for (const contact of hunter.contacts) addContact(contact);
     for (const item of allItems) {
       const linkedinUrl = normalizeLinkedInProfileUrl(item.url);
       if (!linkedinUrl) continue;
@@ -1023,7 +1175,7 @@ serve(async (req) => {
     }
     await persistContacts(serviceClient, context.user.id, runId, job, contacts);
 
-    const genericInbox = verifiedRecruitmentInbox(publicItems, officialDomain);
+    const genericInbox = verifiedRecruitmentInbox(publicItems, officialDomain) || hunter.genericInbox;
     const bestEmail = contacts.filter((contact) => contact.safeToContact && contact.workEmail)
       .sort((a, b) => b.relevanceScore - a.relevanceScore)[0]?.workEmail || genericInbox?.email || "";
     const safeCount = contacts.filter((contact) => contact.safeToContact).length;
@@ -1086,7 +1238,7 @@ serve(async (req) => {
         emailAutoSendAllowed: false,
         requiresExplicitApprovalBeforeExternalSend: true,
         configuredEmailVerifier: Boolean(asString(Deno.env.get("RECRUITER_EMAIL_VERIFIER_URL"))),
-        configuredContactProvider: Boolean(asString(Deno.env.get("RECRUITER_CONTACT_PROVIDER_URL"))),
+        configuredContactProvider: Boolean(asString(Deno.env.get("RECRUITER_CONTACT_PROVIDER_URL"))) || Boolean(hunterKey()),
       },
       discoveryRunId: runId,
     }, 200, headers);

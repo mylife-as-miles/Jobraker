@@ -71,11 +71,12 @@ export const CHAT_ACTIONS: ChatAction[] = [
   },
   {
     id: "recruiter_outreach",
-    kind: "preset",
-    label: "Reach out to recruiters",
-    description: "Find contacts and draft emails.",
+    kind: "prompt",
+    label: "Reach out to a recruiter",
+    description: "Find the email, write it, draft it.",
     icon: "mail",
-    recipeId: "recruiter_cold_outreach",
+    prompt:
+      "/recruiter-outreach Find the recruiter for my latest application, write the email and save it as a Gmail draft.",
   },
   {
     id: "follow_up",
