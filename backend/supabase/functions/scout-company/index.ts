@@ -8,6 +8,12 @@ import {
   extractPublishedRecruiterContacts,
   normalizeContactProviderContacts,
 } from "../_shared/recruiter-contact-discovery.ts";
+import {
+  candidateEmails,
+  inferEmailPattern,
+  type EmailPattern,
+} from "../_shared/email-pattern.ts";
+import { resolveRtrvrApiKey, rtrvrFetch } from "../_shared/firecrawl.ts";
 
 interface ScoutRequest {
   companyName: string;
@@ -766,6 +772,397 @@ async function findEmailWithHunter(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Self-built email discovery: RTRVR reads the company's own site for recruiters
+// and published addresses, the company's email format is learned from what it
+// publishes, Reoon (REOON_API_KEY) confirms candidate mailboxes, and results
+// are cached for every user in company_email_profiles and
+// shared_recruiter_contacts. A domain whose mail server accepts any address
+// cannot be confirmed; those contacts get the format-matched address as
+// "pattern_only" (shown as Likely) and are never marked safe.
+// ---------------------------------------------------------------------------
+
+const REOON_ENDPOINT = "https://emailverifier.reoon.com/api/v1/verify";
+const REOON_SOURCE = "https://www.reoon.com/email-verifier/";
+const SHARED_DISCOVERY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_REOON_CHECKS_PER_RUN = 12;
+const MAX_CONTACTS_TO_RESOLVE = 5;
+const VERIFY_PHASE_BUDGET_MS = 40_000;
+
+type ReoonStatus =
+  | "safe"
+  | "invalid"
+  | "disabled"
+  | "disposable"
+  | "inbox_full"
+  | "catch_all"
+  | "role_account"
+  | "spamtrap"
+  | "unknown";
+
+const reoonKey = () => asString(Deno.env.get("REOON_API_KEY"));
+
+async function reoonVerify(email: string): Promise<ReoonStatus> {
+  const key = reoonKey();
+  if (!key) return "unknown";
+  const url = new URL(REOON_ENDPOINT);
+  url.searchParams.set("email", email);
+  url.searchParams.set("key", key);
+  url.searchParams.set("mode", "power");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("reoon_timeout"), 25_000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      console.warn("reoon verify failed", { status: response.status });
+      return "unknown";
+    }
+    const data = await response.json().catch(() => null);
+    if (data?.is_catch_all === true) return "catch_all";
+    const status = asString(data?.status).toLowerCase() as ReoonStatus;
+    return status || "unknown";
+  } catch (error) {
+    console.warn("reoon verify failed", {
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return "unknown";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Free MX lookup over DNS-over-HTTPS. Null when the lookup itself failed. */
+async function domainReceivesMail(domain: string): Promise<boolean | null> {
+  try {
+    const response = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`,
+      { headers: { accept: "application/dns-json" }, signal: AbortSignal.timeout(8_000) },
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return Array.isArray(data?.Answer) && data.Answer.some((answer: any) => answer?.type === 15);
+  } catch {
+    return null;
+  }
+}
+
+interface CompanyEmailProfile {
+  domain: string;
+  mx_ok: boolean | null;
+  catch_all: boolean | null;
+  email_pattern: EmailPattern | null;
+  pattern_confidence: number | null;
+  pattern_samples: number;
+  checked_at: string;
+}
+
+interface SharedDiscovery {
+  profile: CompanyEmailProfile | null;
+  contacts: RecruiterContact[];
+}
+
+const isFresh = (iso: string | null | undefined) =>
+  Boolean(iso) && Date.now() - new Date(iso as string).getTime() < SHARED_DISCOVERY_TTL_MS;
+
+async function loadSharedDiscovery(serviceClient: any, domain: string): Promise<SharedDiscovery> {
+  const [{ data: profile }, { data: rows }] = await Promise.all([
+    serviceClient.from("company_email_profiles").select("*").eq("domain", domain).maybeSingle(),
+    serviceClient
+      .from("shared_recruiter_contacts")
+      .select("*")
+      .eq("domain", domain)
+      .neq("email_status", "bounced")
+      .gte("last_checked_at", new Date(Date.now() - SHARED_DISCOVERY_TTL_MS).toISOString())
+      .limit(20),
+  ]);
+  const contacts = (rows || []).map((row: any): RecruiterContact => {
+    const roleKind = (row.role_kind || inferRoleKind(row.title || "")) as RoleKind;
+    const verified = row.email_status === "provider_verified" || row.email_status === "source_verified";
+    return {
+      fullName: row.full_name,
+      title: row.title || "",
+      roleKind,
+      linkedinUrl: row.linkedin_url || "",
+      linkedinSourceUrl: row.linkedin_url || "",
+      workEmail: row.email,
+      emailStatus: row.email_status,
+      emailConfidence: Number(row.email_confidence) || 0,
+      emailSourceUrl: row.source_url || `https://${domain}`,
+      relevanceScore: relevanceScore(row.title || "", roleKind, `${row.full_name} ${row.title || ""}`, row.company, []),
+      evidence: [{ type: "shared_discovery_cache", checkedAt: row.last_checked_at }],
+      safeToContact: verified,
+    };
+  });
+  return { profile: isFresh(profile?.checked_at) ? profile : null, contacts };
+}
+
+async function saveSharedDiscovery(
+  serviceClient: any,
+  domain: string,
+  company: string,
+  profile: Omit<CompanyEmailProfile, "domain" | "checked_at">,
+  contacts: RecruiterContact[],
+) {
+  const now = new Date().toISOString();
+  const { error: profileError } = await serviceClient.from("company_email_profiles").upsert({
+    domain,
+    company,
+    ...profile,
+    checked_at: now,
+    updated_at: now,
+  }, { onConflict: "domain" });
+  if (profileError) console.warn("company email profile upsert failed", profileError);
+
+  const rows = contacts
+    .filter((contact) => contact.workEmail &&
+      ["provider_verified", "source_verified", "pattern_only"].includes(contact.emailStatus))
+    .map((contact) => ({
+      domain,
+      company,
+      full_name: contact.fullName,
+      title: contact.title || null,
+      role_kind: contact.roleKind,
+      linkedin_url: contact.linkedinUrl || null,
+      email: contact.workEmail.toLowerCase(),
+      email_status: contact.emailStatus,
+      email_confidence: contact.emailConfidence,
+      source_url: contact.emailSourceUrl || null,
+      last_checked_at: now,
+      updated_at: now,
+    }));
+  if (!rows.length) return;
+  const { error } = await serviceClient
+    .from("shared_recruiter_contacts")
+    .upsert(rows, { onConflict: "domain,email" });
+  if (error) console.warn("shared recruiter contacts upsert failed", error);
+}
+
+interface SiteScan {
+  people: Array<{ fullName: string; title: string; email: string; sourceUrl: string }>;
+  emails: string[];
+}
+
+/** RTRVR browses the company's own site for recruiters and published emails. */
+async function scanCompanySiteWithRtrvr(
+  domain: string,
+  company: string,
+  jobTitle: string,
+): Promise<SiteScan> {
+  const empty: SiteScan = { people: [], emails: [] };
+  if (!domain || !asString(Deno.env.get("RTRVR_API_KEY"))) return empty;
+  try {
+    const apiKey = await resolveRtrvrApiKey();
+    const result: any = await rtrvrFetch("/extract", apiKey, {
+      urls: [`https://${domain}`],
+      prompt:
+        `You are on ${company}'s website (${domain}). Open its team, about, leadership, people, careers and contact pages, at most 5 pages on ${domain}. ` +
+        `List people who work in recruiting, talent acquisition, HR or people operations, and leaders of the team that would hire a "${jobTitle || "new hire"}". ` +
+        `For each give the full name, job title, the email address shown for them if any, and the page URL. ` +
+        `Also list every email address ending in ${domain} that appears on those pages. Only report what is written on the pages. Never guess an email.`,
+      schema: {
+        type: "object",
+        properties: {
+          people: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                fullName: { type: "string" },
+                title: { type: "string" },
+                email: { type: "string" },
+                pageUrl: { type: "string" },
+              },
+              required: ["fullName"],
+            },
+          },
+          emails: { type: "array", items: { type: "string" } },
+        },
+        required: ["people", "emails"],
+      },
+    }, undefined, 60_000);
+    const json = result?.data?.json || {};
+    const onDomain = (email: string) => domainsCompatible(email.split("@")[1] || "", domain);
+    const people = (Array.isArray(json.people) ? json.people : [])
+      .map((person: any) => ({
+        fullName: asString(person?.fullName),
+        title: asString(person?.title),
+        email: asString(person?.email).toLowerCase(),
+        sourceUrl: asString(person?.pageUrl) || `https://${domain}`,
+      }))
+      .filter((person: SiteScan["people"][number]) => person.fullName.split(/\s+/).length >= 2)
+      .map((person: SiteScan["people"][number]) => ({
+        ...person,
+        email: extractEmails(person.email).find(onDomain) || "",
+      }));
+    const emails = (Array.isArray(json.emails) ? json.emails : [])
+      .flatMap((value: unknown) => extractEmails(asString(value)))
+      .filter(onDomain);
+    return { people, emails: [...new Set<string>(emails)] };
+  } catch (error) {
+    console.warn("rtrvr site scan failed", {
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return empty;
+  }
+}
+
+interface PatternResolution {
+  contacts: RecruiterContact[];
+  genericInbox: { email: string; sourceUrl: string } | null;
+}
+
+/**
+ * Gives contacts without a confirmed address one: the learned or most common
+ * company format, confirmed by Reoon when the server allows it, otherwise
+ * returned as pattern_only (never safe to send without the user's approval).
+ */
+async function resolveEmailsByPattern(opts: {
+  serviceClient: any;
+  domain: string;
+  company: string;
+  contacts: RecruiterContact[];
+  samples: Array<{ email: string; fullName?: string }>;
+  cachedProfile: CompanyEmailProfile | null;
+  needGenericInbox: boolean;
+}): Promise<PatternResolution> {
+  const { domain, company } = opts;
+  const deadline = Date.now() + VERIFY_PHASE_BUDGET_MS;
+  let checks = 0;
+  const canCheck = () => Boolean(reoonKey()) && checks < MAX_REOON_CHECKS_PER_RUN && Date.now() < deadline;
+  const check = async (email: string) => {
+    checks += 1;
+    return await reoonVerify(email);
+  };
+
+  // Domain profile: cached, or worked out now.
+  let profile = opts.cachedProfile;
+  if (!profile) {
+    const learned = inferEmailPattern(opts.samples, domain);
+    const mxOk = await domainReceivesMail(domain);
+    let catchAll: boolean | null = null;
+    if (mxOk !== false && canCheck()) {
+      // A random mailbox that cannot exist: if it "verifies", nothing will.
+      const probe = await check(`zz-${crypto.randomUUID().slice(0, 12)}@${domain}`);
+      catchAll = probe === "catch_all" || probe === "safe" ? true
+        : probe === "invalid" || probe === "disabled" ? false
+        : null;
+    }
+    profile = {
+      domain,
+      mx_ok: mxOk,
+      catch_all: catchAll,
+      email_pattern: learned?.pattern || null,
+      pattern_confidence: learned?.confidence ?? null,
+      pattern_samples: learned?.samples || 0,
+      checked_at: new Date().toISOString(),
+    };
+  }
+  if (profile.mx_ok === false) {
+    return { contacts: opts.contacts, genericInbox: null };
+  }
+
+  const verifiedFor = (contact: RecruiterContact, email: string): RecruiterContact => ({
+    ...contact,
+    workEmail: email,
+    emailStatus: "provider_verified",
+    emailConfidence: 0.95,
+    emailSourceUrl: REOON_SOURCE,
+    safeToContact: true,
+    evidence: [...contact.evidence, { type: "mailbox_verified", provider: "reoon" }],
+  });
+  const likelyFor = (contact: RecruiterContact, email: string): RecruiterContact => ({
+    ...contact,
+    workEmail: email,
+    emailStatus: "pattern_only",
+    emailConfidence: profile!.email_pattern
+      ? Number((0.4 + 0.4 * Number(profile!.pattern_confidence || 0)).toFixed(2))
+      : 0.3,
+    emailSourceUrl: `https://${domain}`,
+    safeToContact: false,
+    evidence: [...contact.evidence, {
+      type: "company_email_format",
+      pattern: profile!.email_pattern || "common_format",
+      patternSamples: profile!.pattern_samples,
+      catchAll: profile!.catch_all,
+    }],
+  });
+
+  const pending = opts.contacts
+    .map((contact, index) => ({ contact, index }))
+    .filter(({ contact }) => !(contact.safeToContact && contact.workEmail))
+    .slice(0, MAX_CONTACTS_TO_RESOLVE);
+  const resolved = [...opts.contacts];
+
+  // Reoon allows up to 5 parallel requests; contacts are checked in parallel,
+  // each contact's candidates one after another.
+  await Promise.all(pending.map(async ({ contact, index }) => {
+    const candidates = candidateEmails(contact.fullName, domain, profile!.email_pattern);
+    if (!candidates.length) return;
+    if (profile!.catch_all === true || !reoonKey()) {
+      resolved[index] = likelyFor(contact, candidates[0]);
+      return;
+    }
+    let rejected = 0;
+    for (const candidate of candidates) {
+      if (!canCheck()) break;
+      const status = await check(candidate);
+      if (status === "safe") {
+        resolved[index] = verifiedFor(contact, candidate);
+        return;
+      }
+      if (status === "catch_all") {
+        profile!.catch_all = true;
+        break;
+      }
+      if (status === "invalid" || status === "disabled") {
+        rejected += 1;
+        continue;
+      }
+      break; // unknown, inbox_full, ...: the server will not say more.
+    }
+    // Every format was rejected outright: do not offer a guess.
+    if (rejected < candidates.length) resolved[index] = likelyFor(contact, candidates[0]);
+  }));
+
+  // A confirmed jobs@/careers@ inbox is a good fallback recipient.
+  let genericInbox: PatternResolution["genericInbox"] = null;
+  if (opts.needGenericInbox && profile.catch_all === false) {
+    for (const local of ["careers", "jobs", "recruiting", "talent"]) {
+      if (!canCheck()) break;
+      const email = `${local}@${domain}`;
+      if (await check(email) === "safe") {
+        genericInbox = { email, sourceUrl: REOON_SOURCE };
+        break;
+      }
+    }
+  }
+
+  // A newly learned pattern from verified addresses beats a guess next time.
+  if (!profile.email_pattern) {
+    const learned = inferEmailPattern(
+      resolved
+        .filter((contact) => contact.emailStatus === "provider_verified" || contact.emailStatus === "source_verified")
+        .map((contact) => ({ email: contact.workEmail, fullName: contact.fullName })),
+      domain,
+    );
+    if (learned) {
+      profile.email_pattern = learned.pattern;
+      profile.pattern_confidence = learned.confidence;
+      profile.pattern_samples = learned.samples;
+    }
+  }
+
+  await saveSharedDiscovery(opts.serviceClient, domain, company, {
+    mx_ok: profile.mx_ok,
+    catch_all: profile.catch_all,
+    email_pattern: profile.email_pattern,
+    pattern_confidence: profile.pattern_confidence,
+    pattern_samples: profile.pattern_samples,
+  }, resolved);
+
+  return { contacts: resolved, genericInbox };
+}
+
 async function enrichEmail(
   contact: RecruiterContact,
   officialDomain: string,
@@ -1077,6 +1474,7 @@ serve(async (req) => {
       publicEmailItems,
       providerContacts,
       hunter,
+      siteScan,
     ] = await Promise.all([
       searchForRun(searchPlan.linkedInRecruiters, 8),
       searchForRun(searchPlan.linkedInManagers, 8),
@@ -1085,6 +1483,7 @@ serve(async (req) => {
       searchForRun(searchPlan.publicEmails, 6, true),
       searchContactProvider(job.company, officialDomain, job.title, teamKeywords, 8),
       searchHunter(job.company, officialDomain, job.title, teamKeywords, 8),
+      scanCompanySiteWithRtrvr(officialDomain, job.company, job.title),
     ]);
     // Hunter can resolve the domain when the web search could not.
     if (!officialDomain && hunter.domain) officialDomain = hunter.domain;
@@ -1123,6 +1522,28 @@ serve(async (req) => {
     }
     for (const contact of providerContacts) addContact(contact);
     for (const contact of hunter.contacts) addContact(contact);
+    const shared: SharedDiscovery = officialDomain
+      ? await loadSharedDiscovery(serviceClient, officialDomain)
+      : { profile: null, contacts: [] };
+    for (const contact of shared.contacts) addContact(contact);
+    for (const person of siteScan.people) {
+      const roleKind = inferRoleKind(person.title);
+      if (roleKind === "unknown" || roleKind === "employee") continue;
+      addContact({
+        fullName: person.fullName,
+        title: person.title,
+        roleKind,
+        linkedinUrl: "",
+        linkedinSourceUrl: "",
+        workEmail: person.email,
+        emailStatus: person.email ? "source_verified" : "not_found",
+        emailConfidence: person.email ? 0.9 : 0,
+        emailSourceUrl: person.email ? person.sourceUrl : "",
+        relevanceScore: relevanceScore(person.title, roleKind, `${person.fullName} ${person.title}`, job.company, teamKeywords),
+        evidence: [{ type: "company_site_rtrvr", sourceUrl: person.sourceUrl }],
+        safeToContact: Boolean(person.email),
+      });
+    }
     for (const item of allItems) {
       const linkedinUrl = normalizeLinkedInProfileUrl(item.url);
       if (!linkedinUrl) continue;
@@ -1173,9 +1594,31 @@ serve(async (req) => {
             : searchWeb,
         ));
     }
+    const publishedInbox = verifiedRecruitmentInbox(publicItems, officialDomain) || hunter.genericInbox;
+    let patternInbox: { email: string; sourceUrl: string } | null = null;
+    if (officialDomain) {
+      const resolution = await resolveEmailsByPattern({
+        serviceClient,
+        domain: officialDomain,
+        company: job.company,
+        contacts,
+        samples: [
+          ...siteScan.people.filter((person) => person.email)
+            .map((person) => ({ email: person.email, fullName: person.fullName })),
+          ...siteScan.emails.map((email) => ({ email })),
+          ...publicItems.flatMap((item) => extractEmails(sourceText(item))).map((email) => ({ email })),
+          ...contacts.filter((contact) => contact.safeToContact && contact.workEmail)
+            .map((contact) => ({ email: contact.workEmail, fullName: contact.fullName })),
+        ],
+        cachedProfile: shared.profile,
+        needGenericInbox: !publishedInbox,
+      });
+      contacts.splice(0, contacts.length, ...resolution.contacts);
+      patternInbox = resolution.genericInbox;
+    }
     await persistContacts(serviceClient, context.user.id, runId, job, contacts);
 
-    const genericInbox = verifiedRecruitmentInbox(publicItems, officialDomain) || hunter.genericInbox;
+    const genericInbox = publishedInbox || patternInbox;
     const bestEmail = contacts.filter((contact) => contact.safeToContact && contact.workEmail)
       .sort((a, b) => b.relevanceScore - a.relevanceScore)[0]?.workEmail || genericInbox?.email || "";
     const safeCount = contacts.filter((contact) => contact.safeToContact).length;
@@ -1188,6 +1631,8 @@ serve(async (req) => {
       }
       if (contact.safeToContact && contact.workEmail) {
         publicContactChannels.push(`Verified work email | ${contact.fullName} | ${contact.workEmail} | ${contact.emailStatus} | source=${contact.emailSourceUrl}`);
+      } else if (contact.emailStatus === "pattern_only" && contact.workEmail) {
+        publicContactChannels.push(`Likely work email (matches company format, not confirmed) | ${contact.fullName} | ${contact.workEmail}`);
       }
     }
     if (genericInbox) {

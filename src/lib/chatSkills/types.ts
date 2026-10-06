@@ -180,7 +180,8 @@ export type ColdMailRecipient = {
   name?: string;
   title?: string;
   source: string;
-  confidence: "high" | "medium";
+  /** low: matches the company email format, not confirmed by the mail server. */
+  confidence: "high" | "medium" | "low";
 };
 
 export type ColdMailTarget = {
