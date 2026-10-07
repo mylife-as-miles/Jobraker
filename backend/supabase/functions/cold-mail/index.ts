@@ -1250,7 +1250,9 @@ serve(async (req) => {
               boundedString(request.recipientSource, "recipientSource", 2_048) ||
               "Reviewed recruiter outreach workflow",
             confidence:
-              request.recipientConfidence === "high" ? "high" : "medium",
+              request.recipientConfidence === "high" || request.recipientConfidence === "low"
+                ? request.recipientConfidence
+                : "medium",
           },
           subject,
           body,

@@ -54,7 +54,7 @@ describe("Chat Skills Palette Triggers & Suggestions", () => {
 
   it("matches skills by alias or query", () => {
     const scoutSkills = getSkillSuggestions("scout", "mention");
-    expect(scoutSkills.some((s) => s.id === "company_scout")).toBe(true);
+    expect(scoutSkills.some((s) => s.id === "cold_mail")).toBe(true);
 
     const applySkills = getSkillSuggestions("apply", "slash");
     expect(applySkills.some((s) => s.id === "direct_apply")).toBe(true);
@@ -63,19 +63,23 @@ describe("Chat Skills Palette Triggers & Suggestions", () => {
     expect(resumeSkills.some((s) => s.id === "resume_tailor")).toBe(true);
   });
 
-  it("registers Cold Mail as an independent skill from Outreach Writer", () => {
+  it("registers one Recruiter Outreach skill in place of Scout, Writer and Cold Mail", () => {
     const coldMail = jobrakerChatSkills.find((skill) => skill.id === "cold_mail");
-    const outreachWriter = jobrakerChatSkills.find(
-      (skill) => skill.id === "outreach_writer",
+    const retired = jobrakerChatSkills.filter((skill) =>
+      ["outreach_writer", "company_scout"].includes(skill.id),
     );
 
     expect(coldMail).toMatchObject({
-      name: "Cold Mail",
+      name: "Recruiter Outreach",
       category: "writing",
-      aliases: expect.arrayContaining(["@ColdMail", "/cold-mail"]),
+      aliases: expect.arrayContaining([
+        "/recruiter-outreach",
+        "/cold-mail",
+        "/recruiter-scout",
+        "/outreach-writer",
+      ]),
     });
-    expect(outreachWriter).toBeDefined();
-    expect(coldMail).not.toBe(outreachWriter);
+    expect(retired).toEqual([]);
   });
 
   it("correctly replaces the trigger token with selected skill alias", () => {

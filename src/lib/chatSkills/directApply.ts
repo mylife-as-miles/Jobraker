@@ -296,17 +296,25 @@ const sanitizeCompanyName = (value: string) =>
     .replace(/^[\s,.-]+|[\s,.-]+$/g, "")
     .trim();
 
+// Job titles, markdown fragments and long phrases are not company names.
+// Treating them as companies sent scout searches for "Software Engineer**".
+const JOB_TITLE_WORDS =
+  /\b(?:engineer|manager|developer|designer|analyst|specialist|lead|director|intern|coordinator|associate|consultant|officer|architect|administrator|scientist|representative|executive|assistant|head of|vp)\b/i;
+
+const looksLikeCompanyName = (value: string) =>
+  value.length > 1 &&
+  /[A-Z]/.test(value) &&
+  !/[*#`|<>]/.test(value) &&
+  value.split(/\s+/).length <= 5 &&
+  !JOB_TITLE_WORDS.test(value) &&
+  !COMPANY_STOP_WORDS.has(value);
+
 const splitCompanyList = (value: string) =>
   unique(
     value
       .split(/\s+(?:and|or)\s+|,\s*|\/+/i)
       .map(sanitizeCompanyName)
-      .filter(
-        (company) =>
-          company.length > 1 &&
-          /[A-Z]/.test(company) &&
-          !COMPANY_STOP_WORDS.has(company),
-      ),
+      .filter(looksLikeCompanyName),
   );
 
 const extractTargetCompaniesFromText = (text: string): string[] => {
@@ -372,7 +380,11 @@ export const resolveTargetCompanies = async (
   const explicit = extractTargetCompaniesFromText(input.userInstruction);
   if (explicit.length) return explicit;
 
-  const recentMessages = [...(input.conversationContext || [])].reverse();
+  // Only the user's own messages name targets. Assistant replies are full of
+  // job titles and tables that the list heuristics would read as companies.
+  const recentMessages = [...(input.conversationContext || [])]
+    .filter((message) => message.role === "user")
+    .reverse();
   for (const message of recentMessages) {
     const fromMessage = extractTargetCompaniesFromText(message.content);
     if (fromMessage.length) return fromMessage;

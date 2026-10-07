@@ -31,7 +31,7 @@ describe("RecruiterScout skill alias and resolution", () => {
     const parsed = parseSkillCall(prompt);
 
     expect(parsed.detected).toBe(true);
-    expect(parsed.skillId).toBe("company_scout");
+    expect(parsed.skillId).toBe("cold_mail");
     expect(parsed.trigger).toBe("mention");
     expect(parsed.rawCommand).toBe("@RecruiterScout");
   });

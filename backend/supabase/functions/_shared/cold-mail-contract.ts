@@ -1,4 +1,6 @@
-export type ColdMailConfidence = "high" | "medium";
+// low: the address matches the company email format but its mail server
+// could not confirm the mailbox. Shown as "Likely" and always reviewed.
+export type ColdMailConfidence = "high" | "medium" | "low";
 
 export type ColdMailPreparation = {
   userId: string;
@@ -110,7 +112,7 @@ const parseSignedPreparation = (value: unknown): SignedColdMailPreparation => {
       title: asNonEmptyString(recipient?.title) || undefined,
       source: asNonEmptyString(recipient?.source),
       confidence:
-        confidence === "high" || confidence === "medium"
+        confidence === "high" || confidence === "medium" || confidence === "low"
           ? confidence
           : "medium",
     },
@@ -373,6 +375,32 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
+/**
+ * Last resort when nothing is confirmed: the best recruiter whose address
+ * matches the company's email format (scout-company status pattern_only).
+ */
+function likelyRecruiter(
+  scout: Record<string, unknown>,
+): ColdMailPreparation["recipient"] | null {
+  const likely = (Array.isArray(scout.recruiterContacts) ? scout.recruiterContacts : [])
+    .map(asRecord)
+    .filter((contact): contact is Record<string, unknown> => Boolean(contact))
+    .filter((contact) =>
+      asNonEmptyString(contact.emailStatus) === "pattern_only" &&
+      isEmailAddress(asNonEmptyString(contact.workEmail)) &&
+      isWebUrl(asNonEmptyString(contact.emailSourceUrl))
+    )
+    .sort((left, right) => Number(right.relevanceScore || 0) - Number(left.relevanceScore || 0))[0];
+  if (!likely) return null;
+  return {
+    email: asNonEmptyString(likely.workEmail),
+    name: asNonEmptyString(likely.fullName) || undefined,
+    title: asNonEmptyString(likely.title) || undefined,
+    source: asNonEmptyString(likely.emailSourceUrl),
+    confidence: "low",
+  };
+}
+
 export function selectColdMailRecipient(
   scoutResult: unknown,
 ): ColdMailPreparation["recipient"] | null {
@@ -413,7 +441,7 @@ export function selectColdMailRecipient(
   }
 
   const contactEmail = asNonEmptyString(scout.contactEmail);
-  if (!isEmailAddress(contactEmail)) return null;
+  if (!isEmailAddress(contactEmail)) return likelyRecruiter(scout);
 
   const evidenceLine = (Array.isArray(scout.publicContactChannels)
     ? scout.publicContactChannels
@@ -426,7 +454,7 @@ export function selectColdMailRecipient(
         /\bsource=https?:\/\//i.test(line),
     );
   const source = evidenceLine?.match(/\bsource=(https?:\/\/\S+)/i)?.[1] || "";
-  if (!source) return null;
+  if (!source) return likelyRecruiter(scout);
 
   return {
     email: contactEmail,

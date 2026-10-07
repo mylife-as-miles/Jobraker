@@ -28,8 +28,13 @@ export const ColdMailSkillCard: React.FC<Props> = ({ output }) => {
       company: preparation.companyName,
       email: preparation.recipient.email,
       roleKind: "recruiter",
-      verification: "source_verified",
-      confidence: preparation.recipient.confidence === "high" ? 0.95 : 0.8,
+      verification: preparation.recipient.confidence === "low" ? "unknown" : "source_verified",
+      confidence:
+        preparation.recipient.confidence === "high"
+          ? 0.95
+          : preparation.recipient.confidence === "low"
+            ? 0.5
+            : 0.8,
       provenance: {
         sourceType: preparation.recipient.source,
         sourceUrl: preparation.recipient.source,
@@ -37,7 +42,9 @@ export const ColdMailSkillCard: React.FC<Props> = ({ output }) => {
       },
       selectionReasons: [
         "Identified as active talent partner for target role",
-        "Verified company work email",
+        preparation.recipient.confidence === "low"
+          ? "Likely email: matches the company's email format but could not be confirmed. Check before sending."
+          : "Verified company work email",
       ],
     },
     candidateEvidence: [],

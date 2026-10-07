@@ -157,10 +157,27 @@ const clarificationResult = (
 
 export const coldMailSkill: JobrakerChatSkill = {
   id: "cold_mail",
-  name: "Cold Mail",
-  aliases: ["@ColdMail", "/cold-mail", "/cold-email"],
+  // One outreach flow: find the recruiter, verify the email, write the
+  // message and draft it in Gmail. Recruiter Scout and Outreach Writer were
+  // separate steps; their commands now land here.
+  name: "Recruiter Outreach",
+  aliases: [
+    "@RecruiterOutreach",
+    "/recruiter-outreach",
+    "@ColdMail",
+    "/cold-mail",
+    "/cold-email",
+    "@RecruiterScout",
+    "@CompanyScout",
+    "/recruiter-scout",
+    "/company-scout",
+    "/find-company-emails",
+    "/find-hiring-manager",
+    "@OutreachWriter",
+    "/outreach-writer",
+  ],
   description:
-    "Research one job, find a verified recruiter contact, and create an approved Gmail draft.",
+    "Find the recruiter's verified email, write a tailored email, and save it as a Gmail draft for your approval.",
   icon: "mail",
   category: "writing",
   triggerType: "both",
