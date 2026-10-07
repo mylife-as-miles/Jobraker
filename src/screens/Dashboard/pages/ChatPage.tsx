@@ -433,7 +433,7 @@ type ChatSessionState = {
   model?: string | null;
 };
 
-const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_CHAT_MODEL = "default";
 const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
 const CHAT_TIMEOUT_MS = 30 * 60_000;
