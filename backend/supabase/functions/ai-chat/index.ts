@@ -2385,7 +2385,7 @@ async function streamAgentModelStep(opts: {
       requestId: stepRequestId,
       featureKey: "ai_chat",
       provider: "gemini",
-      model: opts.chat?.model || "gemini-3-flash-preview",
+      model: opts.chat?.model || GEMINI_MODEL,
       estimatedInputTokens: estInput,
       maxOutputTokens: 4096,
       payload: opts.message,
@@ -4575,14 +4575,10 @@ Deno.serve(async (req) => {
     // --- Tiered model selection ---
     // Premium model (gemini-3.5-flash) costs 2 credits; only used when explicitly requested.
     const isPremiumRequest = requestedModel === GEMINI_PREMIUM_MODEL || requestedModel === "premium";
-    let modelName: string;
-    if (isPremiumRequest) {
-      modelName = GEMINI_PREMIUM_MODEL;
-    } else if (requestedModel && requestedModel !== "default") {
-      modelName = requestedModel;
-    } else {
-      modelName = GEMINI_MODEL;
-    }
+    // The client only chooses default or premium. Honouring any model name it
+    // sent let an old hard-coded preview model (with far lower rate limits)
+    // drive every chat turn into 429s.
+    const modelName = isPremiumRequest ? GEMINI_PREMIUM_MODEL : GEMINI_MODEL;
     // Fallback chain for rate-limit resilience: primary → lite
     const fallbackModels = [modelName, GEMINI_LITE_MODEL].filter(
       (m, i, arr) => arr.indexOf(m) === i,
