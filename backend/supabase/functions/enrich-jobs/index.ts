@@ -7,7 +7,7 @@ import { GoogleGenAI } from "npm:@google/genai";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/types.ts";
 
-const GEMINI_MODEL = 'gemini-3-pro-preview';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 function trim(s: any): string { return (typeof s === 'string' ? s : '').trim(); }
 
