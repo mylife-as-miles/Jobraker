@@ -458,6 +458,10 @@ function createResilientGeminiClient(apiKey: string) {
                 lastError = error;
                 const retryable =
                   isGeminiRateLimitError(error) || isModelNotFoundError(error);
+                console.warn(
+                  `[Gemini chat] ${candidateModel} raw error:`,
+                  readNestedErrorMessage(error) || String(error),
+                );
 
                 // Once visible output has escaped, replaying the same model turn
                 // on another provider model could duplicate user-facing text or
