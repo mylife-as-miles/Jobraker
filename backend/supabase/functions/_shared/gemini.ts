@@ -265,7 +265,7 @@ export const GEMINI_PREMIUM_MODEL = "gemini-2.5-pro";
 export const MODEL_FALLBACK_CHAIN = [
   GEMINI_MODEL,
   GEMINI_LITE_MODEL,
-  "gemini-2.0-flash",
+  GEMINI_PREMIUM_MODEL,
 ] as const;
 
 const asProviderRecord = (value: unknown): Record<string, unknown> | null =>
