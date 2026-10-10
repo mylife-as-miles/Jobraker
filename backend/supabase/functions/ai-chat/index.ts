@@ -4573,7 +4573,7 @@ Deno.serve(async (req) => {
     const genAI = createGeminiClient();
 
     // --- Tiered model selection ---
-    // Premium model (gemini-2.5-pro) costs 2 credits; only used when explicitly requested.
+    // Premium model (gemini-3.5-flash) costs 2 credits; only used when explicitly requested.
     const isPremiumRequest = requestedModel === GEMINI_PREMIUM_MODEL || requestedModel === "premium";
     // The client only chooses default or premium. Honouring any model name it
     // sent let an old hard-coded preview model (with far lower rate limits)
@@ -5100,8 +5100,18 @@ Evidence and failure reporting:
       },
     };
     if (mode === "agent") {
-      // Gemini 2.5 rejects googleSearch combined with functionDeclarations.
-      chatConfig.tools = [{ functionDeclarations: agentFunctionDeclarations }];
+      chatConfig.tools = webSearch
+        ? [
+            { functionDeclarations: agentFunctionDeclarations },
+            { googleSearch: {} },
+          ]
+        : [{ functionDeclarations: agentFunctionDeclarations }];
+      /** Required when mixing built-in tools (e.g. googleSearch) with functionDeclarations. */
+      if (webSearch) {
+        chatConfig.toolConfig = {
+          includeServerSideToolInvocations: true,
+        };
+      }
     } else if (webSearch) {
       chatConfig.tools = [{ googleSearch: {} }];
     }

@@ -256,16 +256,16 @@ export async function withGeminiRetry<T>(
 //   LITE    – cheaper fallback for simple work
 //   MODEL   – standard workhorse for most features
 //   PREMIUM – explicitly requested higher-capability path
-export const GEMINI_LITE_MODEL = "gemini-2.5-flash-lite";
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_LITE_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
-export const GEMINI_PREMIUM_MODEL = "gemini-2.5-pro";
+export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
 
 /** Ordered fallback chain. Every entry is deliberately a distinct live model. */
 export const MODEL_FALLBACK_CHAIN = [
   GEMINI_MODEL,
   GEMINI_LITE_MODEL,
-  GEMINI_PREMIUM_MODEL,
+  "gemini-2.5-flash",
 ] as const;
 
 const asProviderRecord = (value: unknown): Record<string, unknown> | null =>

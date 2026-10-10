@@ -205,7 +205,7 @@ export async function reserveAiUsage(
 }> {
   const requestId = options.requestId ?? crypto.randomUUID();
   const provider = options.provider ?? "gemini";
-  const model = options.model ?? "gemini-2.5-flash";
+  const model = options.model ?? "gemini-3-flash-preview";
   const estimatedInputTokens = options.estimatedInputTokens ?? 1000;
   const estimatedOutputTokens = options.estimatedOutputTokens
     ?? options.maxOutputTokens
@@ -530,7 +530,7 @@ export async function runMeteredAiCall<T>(
       billable: true,
       metadata: {
         ...(options.metadata ?? {}),
-        settled_model: options.model ?? "gemini-2.5-flash",
+        settled_model: options.model ?? "gemini-3-flash-preview",
         usage_source: providerUsageConfirmed ? "provider" : "estimated",
         provider_usage_confirmed: providerUsageConfirmed,
         extracted_usage: tokenUsage,

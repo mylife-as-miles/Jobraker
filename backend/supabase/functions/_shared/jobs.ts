@@ -21,7 +21,7 @@ interface FormattedJobInfo {
 export async function cleanJobDescriptionWithAI(
   title: string,
   description: string,
-  model = "gemini-2.5-flash",
+  model = "gemini-3-flash-preview",
   userId?: string,
 ): Promise<FormattedJobInfo> {
   const ai = createGeminiClient();
