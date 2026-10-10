@@ -5106,12 +5106,6 @@ Evidence and failure reporting:
             { googleSearch: {} },
           ]
         : [{ functionDeclarations: agentFunctionDeclarations }];
-      /** Required when mixing built-in tools (e.g. googleSearch) with functionDeclarations. */
-      if (webSearch) {
-        chatConfig.toolConfig = {
-          includeServerSideToolInvocations: true,
-        };
-      }
     } else if (webSearch) {
       chatConfig.tools = [{ googleSearch: {} }];
     }
