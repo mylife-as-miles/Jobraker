@@ -5100,12 +5100,8 @@ Evidence and failure reporting:
       },
     };
     if (mode === "agent") {
-      chatConfig.tools = webSearch
-        ? [
-            { functionDeclarations: agentFunctionDeclarations },
-            { googleSearch: {} },
-          ]
-        : [{ functionDeclarations: agentFunctionDeclarations }];
+      // Gemini 2.5 rejects googleSearch combined with functionDeclarations.
+      chatConfig.tools = [{ functionDeclarations: agentFunctionDeclarations }];
     } else if (webSearch) {
       chatConfig.tools = [{ googleSearch: {} }];
     }
